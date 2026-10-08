@@ -383,34 +383,67 @@ class MainActivity : Activity() {
     override fun onCreate(b:Bundle?){super.onCreate(b);window.statusBarColor=Color.rgb(16,22,20);window.navigationBarColor=Color.rgb(16,22,20);showCreate()}
 
     private fun showCreate(){
-        base("Создание игрока")
+        base("СОЗДАНИЕ ИГРОКА")
+        var refresh3D: () -> Unit = {}
+        var selectedKit = "Белая"
+        var selectedBeard = "Нет"
 
-        val editor = LinearLayout(this).apply {
+        val editor = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.TOP }
+
+        val previewCard = card().apply {
+            setPadding(0, 0, 0, 0)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(18).toFloat()
+                setColor(Color.rgb(11, 20, 29))
+                setStroke(dp(1), Color.rgb(44, 58, 72))
+            }
+        }
+        preview = PlayerPreviewView(this, p).apply { minimumHeight = dp(520) }
+        previewCard.addView(preview, LinearLayout.LayoutParams(-1, dp(520)))
+        editor.addView(previewCard, LinearLayout.LayoutParams(0, dp(540), 0.34f))
+
+        val rightScroll = ScrollView(this).apply { isFillViewport = true }
+        val right = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            setPadding(dp(10), 0, 0, 0)
         }
+        rightScroll.addView(right)
 
-        val previewCard = card()
-        preview = PlayerPreviewView(this, p).apply { minimumHeight = dp(330) }
-        previewCard.addView(preview, LinearLayout.LayoutParams(-1, dp(330)))
-        editor.addView(previewCard)
+        fun label(text:String) = tv(text, 13f, true).apply { setTextColor(Color.rgb(185, 194, 205)) }
 
-        val tabs = LinearLayout(this).apply {
+        fun row(vararg views:View): LinearLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(0, dp(4), 0, dp(4))
+            gravity = Gravity.CENTER_VERTICAL
+            views.forEach { addView(it, LinearLayout.LayoutParams(0, dp(44), 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) }) }
         }
-        val infoTab = button("ИНФОРМАЦИЯ") {}
-        val bodyTab = button("ТЕЛО И КОЖА") {}
-        val hairTab = button("ПРИЧЕСКИ") {}
-        tabs.addView(infoTab, LinearLayout.LayoutParams(0, dp(48), 1f))
-        tabs.addView(bodyTab, LinearLayout.LayoutParams(0, dp(48), 1f))
-        tabs.addView(hairTab, LinearLayout.LayoutParams(0, dp(48), 1f))
-        editor.addView(tabs)
 
-        val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        editor.addView(panel)
+        fun option(text:String, selected:Boolean=false, action:()->Unit): Button =
+            button(text, action).apply {
+                textSize = 13f
+                minHeight = dp(42)
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(10).toFloat()
+                    setColor(if (selected) Color.rgb(42, 112, 210) else Color.rgb(28, 38, 50))
+                    setStroke(dp(if (selected) 2 else 1), if (selected) Color.rgb(75, 164, 255) else Color.rgb(54, 67, 82))
+                }
+            }
+
+        fun section(title:String): LinearLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(Color.rgb(22, 30, 40))
+                setStroke(dp(1), Color.rgb(45, 57, 71))
+            }
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(5), 0, dp(5)) }
+            addView(tv(title, 18f, true))
+        }
 
         val first = field("Имя", "Алекс")
         val last = field("Фамилия", "Морозов")
+        val age = field("Возраст", "18", android.text.InputType.TYPE_CLASS_NUMBER)
+        val num = field("Номер", "10", android.text.InputType.TYPE_CLASS_NUMBER)
         val country = Spinner(this).apply {
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
                 arrayOf("Россия","Нидерланды","Германия","Бразилия","Аргентина","Франция","Испания","Англия"))
@@ -419,117 +452,113 @@ class MainActivity : Activity() {
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
                 arrayOf("ЦАП","ПВ","ЛВ","ЦФ","ЦП","ЦЗ","ВР"))
         }
-        val age = field("Возраст, 16-35", "18", 2)
-        val num = field("Номер, 1-99", "10", 2)
-        val height = field("Рост, 150-210 см", "180", 2)
-        val weight = field("Вес, 45-120 кг", "72", 2)
-        val skin = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
-                arrayOf("Очень светлая","Светлая","Средняя","Смуглая","Тёмная"))
-        }
 
-        fun refreshModel() {
-            val hh = (height.text.toString().toIntOrNull() ?: 180).coerceIn(150, 210)
-            val ww = (weight.text.toString().toIntOrNull() ?: 72).coerceIn(45, 120)
-            preview?.update(hh, ww, skin.selectedItem?.toString() ?: "Средняя",
-                p.hair, pos.selectedItem?.toString() ?: "ЦАП")
-        }
+        val info = section("ПОЛ И ИНФОРМАЦИЯ")
+        info.addView(row(option("Мужской", true) {}, option("Женский") {
+            Toast.makeText(this, "Женская GLB-модель будет добавлена отдельно", Toast.LENGTH_SHORT).show()
+        }))
+        info.addView(label("ИМЯ И ФАМИЛИЯ"))
+        info.addView(row(first, last))
+        info.addView(label("СТРАНА • ПОЗИЦИЯ"))
+        info.addView(row(country, pos))
+        info.addView(row(age, num))
+        right.addView(info)
 
-        val infoPanel = card().apply {
-            addView(tv("Основная информация", 18f, true))
-            addView(first); addView(last)
-            addView(tv("Страна", 13f, true)); addView(country)
-            addView(tv("Позиция", 13f, true)); addView(pos)
-            addView(age); addView(num)
+        val body = section("ТЕЛОСЛОЖЕНИЕ")
+        val heightValue = tv("\${p.height} см", 14f, true)
+        val weightValue = tv("\${p.weight} кг", 14f, true)
+        fun bodyButton(text:String, action:()->Unit): Button = option(text) {
+            action()
+            heightValue.text = "\${p.height} см"
+            weightValue.text = "\${p.weight} кг"
+            refresh3D()
         }
-        val bodyPanel = card().apply {
-            addView(tv("Параметры тела", 18f, true))
-            addView(tv("Рост и вес сразу обновляют параметры персонажа.", 13f))
-            addView(height); addView(weight)
-            addView(tv("Тон кожи", 13f, true)); addView(skin)
-            addView(button("Сбросить тело") {
-                height.setText("180")
-                weight.setText("72")
-                skin.setSelection(2)
-                refreshModel()
-            })
-        }
-        val hairPanel = card().apply {
-            addView(tv("Выбери причёску", 18f, true))
-            addView(tv("Выбранная причёска сразу отображается на превью.", 13f))
-            val hairstyles = arrayOf(
-                "Короткая классика",
-                "Фейд",
-                "Длинные волосы",
-                "Пучки"
-            )
-            val grid = GridLayout(this@MainActivity).apply {
-                columnCount = 3
-                useDefaultMargins = true
-            }
-            hairstyles.forEach { style ->
-                val b = button(style) {
-                    p.hair = style
-                    preview?.update(
-                        (height.text.toString().toIntOrNull() ?: 180).coerceIn(150,210),
-                        (weight.text.toString().toIntOrNull() ?: 72).coerceIn(45,120),
-                        skin.selectedItem?.toString() ?: "Средняя",
-                        style,
-                        pos.selectedItem?.toString() ?: "ЦАП"
-                    )
-                    Toast.makeText(this@MainActivity, "Причёска: $style", Toast.LENGTH_SHORT).show()
-                }
-                grid.addView(b, GridLayout.LayoutParams().apply {
-                    width = 0
-                    this.height = dp(58)
-                    columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                })
-            }
-            addView(grid)
-        }
+        body.removeAllViews()
+        body.addView(tv("ТЕЛОСЛОЖЕНИЕ", 18f, true))
+        body.addView(label("РОСТ"))
+        body.addView(row(
+            bodyButton("−") { p.height = (p.height - 1).coerceAtLeast(150) },
+            heightValue,
+            bodyButton("+") { p.height = (p.height + 1).coerceAtMost(210) }
+        ))
+        body.addView(label("ВЕС"))
+        body.addView(row(
+            bodyButton("−") { p.weight = (p.weight - 1).coerceAtLeast(45) },
+            weightValue,
+            bodyButton("+") { p.weight = (p.weight + 1).coerceAtMost(120) }
+        ))
+        body.addView(label("ЦВЕТ КОЖИ"))
+        val skins = arrayOf("Очень светлая","Светлая","Средняя","Смуглая","Тёмная")
+        body.addView(row(*skins.map { sk -> option(sk, p.skin == sk) { p.skin = sk; refresh3D() } }.toTypedArray()))
+        right.addView(body)
 
-        panel.addView(infoPanel)
-        panel.addView(bodyPanel)
-        panel.addView(hairPanel)
+        val hair = section("ПРИЧЁСКА И ЦВЕТ ВОЛОС")
+        val hairs = arrayOf("Короткая классика","Фейд","Длинные волосы","Пучки")
+        hair.addView(row(*hairs.map { h -> option(h, p.hair == h) { p.hair = h; refresh3D() } }.toTypedArray()))
+        val hairColors = arrayOf("Тёмные","Светлые","Рыжие","Седые")
+        hair.addView(label("ЦВЕТ ВОЛОС"))
+        hair.addView(row(*hairColors.map { hc -> option(hc, false) {
+            Toast.makeText(this, "Цвет волос: $hc", Toast.LENGTH_SHORT).show()
+        } }.toTypedArray()))
+        right.addView(hair)
 
-        fun showPanel(which: Int) {
-            infoPanel.visibility = if (which == 0) View.VISIBLE else View.GONE
-            bodyPanel.visibility = if (which == 1) View.VISIBLE else View.GONE
-            hairPanel.visibility = if (which == 2) View.VISIBLE else View.GONE
-            refreshModel()
-        }
+        val face = section("ЛИЦО")
+        face.addView(label("Варианты лица оставлены как слоты для будущих face assets."))
+        face.addView(row(*arrayOf("Лицо 1","Лицо 2","Лицо 3","Лицо 4","Лицо 5","Лицо 6").map {
+            option(it, it=="Лицо 1") {}
+        }.toTypedArray()))
+        face.addView(label("РАСТИТЕЛЬНОСТЬ НА ЛИЦЕ"))
+        face.addView(row(*arrayOf("Нет","Щетина","Борода").map { b -> option(b, selectedBeard == b) {
+            selectedBeard = b
+            Toast.makeText(this, "Борода: $b", Toast.LENGTH_SHORT).show()
+        } }.toTypedArray()))
+        right.addView(face)
 
-        infoTab.setOnClickListener { showPanel(0) }
-        bodyTab.setOnClickListener { showPanel(1) }
-        hairTab.setOnClickListener { showPanel(2) }
+        val equipment = section("ЭКИПИРОВКА")
+        val kits = arrayOf("Белая","Чёрная","Красная","Синяя")
+        equipment.addView(label("ФОРМА"))
+        equipment.addView(row(*kits.map { k -> option(k, selectedKit == k) {
+            selectedKit = k
+            Toast.makeText(this, "Форма: $k", Toast.LENGTH_SHORT).show()
+        } }.toTypedArray()))
+        equipment.addView(label("НОМЕР"))
+        val numberText = tv("№ \${p.number}", 16f, true)
+        equipment.addView(row(
+            option("‹") { p.number = (p.number - 1).coerceAtLeast(1); numberText.text = "№ \${p.number}"; num.setText(p.number.toString()) },
+            numberText,
+            option("›") { p.number = (p.number + 1).coerceAtMost(99); numberText.text = "№ \${p.number}"; num.setText(p.number.toString()) }
+        ))
+        equipment.addView(label("АКСЕССУАРЫ"))
+        equipment.addView(row(option("Перчатки") {}, option("Наушники") {}, option("Гетры") {}, option("Бутсы") {}))
+        right.addView(equipment)
 
-        listOf(height, weight).forEach {
-            it.setOnFocusChangeListener { _, _ -> refreshModel() }
+        val finish = button("ЗАВЕРШИТЬ И НАЧАТЬ КАРЬЕРУ  →").apply {
+            textSize = 17f
+            minHeight = dp(58)
         }
-        skin.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { refreshModel() }
-        }
-        pos.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { refreshModel() }
-        }
-
-        content.addView(editor)
-        content.addView(button("Начать карьеру →") {
+        finish.setOnClickListener {
             p.name = (first.text.toString().trim() + " " + last.text.toString().trim()).trim().ifBlank { "Алекс Морозов" }
             p.position = pos.selectedItem.toString()
             p.country = country.selectedItem.toString()
             p.age = (age.text.toString().toIntOrNull() ?: 18).coerceIn(16, 35)
             p.number = (num.text.toString().toIntOrNull() ?: 10).coerceIn(1, 99)
-            p.height = (height.text.toString().toIntOrNull() ?: 180).coerceIn(150, 210)
-            p.weight = (weight.text.toString().toIntOrNull() ?: 72).coerceIn(45, 120)
-            p.skin = skin.selectedItem.toString()
             showAcademySelection()
-        })
-        showPanel(0)
-    }
+        }
+        right.addView(finish)
 
+        refresh3D = {
+            p.position = pos.selectedItem?.toString() ?: p.position
+            preview?.update(p.height, p.weight, p.skin, p.hair, p.position)
+        }
+        pos.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { refresh3D() }
+        }
+
+        editor.addView(rightScroll, LinearLayout.LayoutParams(0, dp(540), 0.66f))
+        content.addView(editor)
+        refresh3D()
+    }
     private fun nav(){
         val bar=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER}
         bar.addView(button("👤 Профиль"){showProfile()},LinearLayout.LayoutParams(0,dp(50),1f))
