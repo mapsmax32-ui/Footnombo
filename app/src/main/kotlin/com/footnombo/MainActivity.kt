@@ -229,75 +229,140 @@ class MainActivity : Activity() {
 
     private fun showCreate(){
         base("Создание игрока")
-        content.addView(tv("Настрой футболиста перед первым контрактом.",14f))
 
-        val previewCard=card()
-        preview=PlayerPreviewView(this,p).apply{minimumHeight=dp(320)}
-        previewCard.addView(preview,LinearLayout.LayoutParams(-1,dp(340)))
-        content.addView(previewCard)
-
-        val c=card()
-        val first=field("Имя","Алекс")
-        val last=field("Фамилия","Морозов")
-        c.addView(first);c.addView(last)
-
-        c.addView(tv("Страна",13f,true))
-        val country=Spinner(this).apply{adapter=ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,
-            arrayOf("Россия","Нидерланды","Германия","Бразилия","Аргентина","Франция","Испания","Англия"))}
-        c.addView(country)
-
-        c.addView(tv("Позиция",13f,true))
-        val pos=Spinner(this).apply{adapter=ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,
-            arrayOf("ЦАП","ПВ","ЛВ","ЦФ","ЦП","ЦЗ","ВР"))}
-        c.addView(pos)
-
-        val age=field("Возраст, 16-35","18",2)
-        val height=field("Рост, 150-210 см","180",2)
-        val weight=field("Вес, 45-120 кг","72",2)
-        val num=field("Номер, 1-99","10",2)
-        c.addView(age);c.addView(height);c.addView(weight);c.addView(num)
-
-        c.addView(tv("Цвет кожи",13f,true))
-        val skin=Spinner(this).apply{adapter=ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,
-            arrayOf("Светлая","Средняя","Смуглая","Тёмная"))}
-        c.addView(skin)
-        c.addView(tv("Волосы",13f,true))
-        val hair=Spinner(this).apply{adapter=ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,
-            arrayOf("Короткая","Каштановая","Светлая","Тёмная"))}
-        c.addView(hair)
-        content.addView(c)
-
-        fun refresh(){
-            val hh=(height.text.toString().toIntOrNull()?:180).coerceIn(150,210)
-            val ww=(weight.text.toString().toIntOrNull()?:72).coerceIn(45,120)
-            preview?.update(hh,ww,skin.selectedItem?.toString()?:"Средняя",hair.selectedItem?.toString()?:"Тёмная",pos.selectedItem?.toString()?:"ЦАП")
-        }
-        listOf(height,weight).forEach{it.setOnFocusChangeListener{_,_->refresh()}}
-        skin.onItemSelectedListener=object: AdapterView.OnItemSelectedListener{
-            override fun onNothingSelected(parent:AdapterView<*>?) {}
-            override fun onItemSelected(parent:AdapterView<*>?,view:View?,position:Int,id:Long){refresh()}
-        }
-        hair.onItemSelectedListener=object: AdapterView.OnItemSelectedListener{
-            override fun onNothingSelected(parent:AdapterView<*>?) {}
-            override fun onItemSelected(parent:AdapterView<*>?,view:View?,position:Int,id:Long){refresh()}
-        }
-        pos.onItemSelectedListener=object: AdapterView.OnItemSelectedListener{
-            override fun onNothingSelected(parent:AdapterView<*>?) {}
-            override fun onItemSelected(parent:AdapterView<*>?,view:View?,position:Int,id:Long){refresh()}
+        val editor = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
         }
 
-        content.addView(button("Начать карьеру →"){
-            p.name=(first.text.toString().trim()+" "+last.text.toString().trim()).trim().ifBlank{"Алекс Морозов"}
-            p.position=pos.selectedItem.toString()
-            p.country=country.selectedItem.toString()
-            p.age=(age.text.toString().toIntOrNull()?:18).coerceIn(16,35)
-            p.number=(num.text.toString().toIntOrNull()?:10).coerceIn(1,99)
-            p.height=(height.text.toString().toIntOrNull()?:180).coerceIn(150,210)
-            p.weight=(weight.text.toString().toIntOrNull()?:72).coerceIn(45,120)
-            p.skin=skin.selectedItem.toString()
-            p.hair=hair.selectedItem.toString()
+        val previewCard = card()
+        preview = PlayerPreviewView(this, p).apply { minimumHeight = dp(330) }
+        previewCard.addView(preview, LinearLayout.LayoutParams(-1, dp(330)))
+        editor.addView(previewCard)
+
+        val tabs = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(4), 0, dp(4))
+        }
+        val infoTab = button("ИНФОРМАЦИЯ") {}
+        val bodyTab = button("ТЕЛО И КОЖА") {}
+        val hairTab = button("ПРИЧЕСКИ") {}
+        tabs.addView(infoTab, LinearLayout.LayoutParams(0, dp(48), 1f))
+        tabs.addView(bodyTab, LinearLayout.LayoutParams(0, dp(48), 1f))
+        tabs.addView(hairTab, LinearLayout.LayoutParams(0, dp(48), 1f))
+        editor.addView(tabs)
+
+        val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        editor.addView(panel)
+
+        val first = field("Имя", "Алекс")
+        val last = field("Фамилия", "Морозов")
+        val country = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
+                arrayOf("Россия","Нидерланды","Германия","Бразилия","Аргентина","Франция","Испания","Англия"))
+        }
+        val pos = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
+                arrayOf("ЦАП","ПВ","ЛВ","ЦФ","ЦП","ЦЗ","ВР"))
+        }
+        val age = field("Возраст, 16-35", "18", 2)
+        val num = field("Номер, 1-99", "10", 2)
+        val height = field("Рост, 150-210 см", "180", 2)
+        val weight = field("Вес, 45-120 кг", "72", 2)
+        val skin = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
+                arrayOf("Очень светлая","Светлая","Средняя","Смуглая","Тёмная"))
+        }
+
+        fun refreshModel() {
+            val hh = (height.text.toString().toIntOrNull() ?: 180).coerceIn(150, 210)
+            val ww = (weight.text.toString().toIntOrNull() ?: 72).coerceIn(45, 120)
+            preview?.update(hh, ww, skin.selectedItem?.toString() ?: "Средняя",
+                p.hair, pos.selectedItem?.toString() ?: "ЦАП")
+        }
+
+        fun showPanel(which: Int) {
+            panel.removeAllViews()
+            when (which) {
+                0 -> {
+                    val c = card()
+                    c.addView(tv("Основная информация", 18f, true))
+                    c.addView(first); c.addView(last)
+                    c.addView(tv("Страна", 13f, true)); c.addView(country)
+                    c.addView(tv("Позиция", 13f, true)); c.addView(pos)
+                    c.addView(age); c.addView(num)
+                    panel.addView(c)
+                }
+                1 -> {
+                    val c = card()
+                    c.addView(tv("Параметры тела", 18f, true))
+                    c.addView(tv("Рост и вес сразу обновляют параметры персонажа.", 13f))
+                    c.addView(height); c.addView(weight)
+                    c.addView(tv("Тон кожи", 13f, true)); c.addView(skin)
+                    panel.addView(c)
+                    panel.addView(button("Сбросить тело"){ height.setText("180"); weight.setText("72"); skin.setSelection(2); refreshModel() })
+                }
+                else -> {
+                    val c = card()
+                    c.addView(tv("Выбери причёску", 18f, true))
+                    c.addView(tv("Варианты меняют внешний вид превью игрока.", 13f))
+                    val hairstyles = arrayOf(
+                        "Короткая классика","Фейд","Высокий фейд","Андеркат",
+                        "Короткий ёжик","Текстурный кроп","Кудри","Объёмные кудри",
+                        "Ирокез","Длинные назад","Дреды","Косички"
+                    )
+                    val grid = GridLayout(this).apply {
+                        columnCount = 3
+                        useDefaultMargins = true
+                    }
+                    hairstyles.forEach { style ->
+                        val b = button(style) {
+                            p.hair = style
+                            preview?.update(p.height, p.weight, p.skin, style, p.position)
+                            Toast.makeText(this@MainActivity, "Причёска: $style", Toast.LENGTH_SHORT).show()
+                            showPanel(2)
+                        }
+                        grid.addView(b, GridLayout.LayoutParams().apply {
+                            width = 0
+                            height = dp(58)
+                            columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                        })
+                    }
+                    c.addView(grid)
+                    panel.addView(c)
+                }
+            }
+            refreshModel()
+        }
+
+        infoTab.setOnClickListener { showPanel(0) }
+        bodyTab.setOnClickListener { showPanel(1) }
+        hairTab.setOnClickListener { showPanel(2) }
+
+        listOf(height, weight).forEach {
+            it.setOnFocusChangeListener { _, _ -> refreshModel() }
+        }
+        skin.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { refreshModel() }
+        }
+        pos.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { refreshModel() }
+        }
+
+        content.addView(editor)
+        content.addView(button("Начать карьеру →") {
+            p.name = (first.text.toString().trim() + " " + last.text.toString().trim()).trim().ifBlank { "Алекс Морозов" }
+            p.position = pos.selectedItem.toString()
+            p.country = country.selectedItem.toString()
+            p.age = (age.text.toString().toIntOrNull() ?: 18).coerceIn(16, 35)
+            p.number = (num.text.toString().toIntOrNull() ?: 10).coerceIn(1, 99)
+            p.height = (height.text.toString().toIntOrNull() ?: 180).coerceIn(150, 210)
+            p.weight = (weight.text.toString().toIntOrNull() ?: 72).coerceIn(45, 120)
+            p.skin = skin.selectedItem.toString()
             showCareer()
         })
+        showPanel(0)
     }
 
     private fun nav(){
