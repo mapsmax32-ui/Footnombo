@@ -59,10 +59,7 @@ data class Player(
 
 class PlayerPreviewView(context: Activity, private var player: Player) : FrameLayout(context) {
     companion object {
-        private const val MODEL_URL = "https://raw.githubusercontent.com/kendrekaran/striker-3d/main/assets/player.glb"
-        private const val CACHE_NAME = "footnombo_male_soccer_player.glb"
-        private const val HAIR_URL = "https://raw.githubusercontent.com/Quizball-trivia/web/c1d268834751bcc405054176b45e784eda6b6379/public/assets/demos/score/player-hair.glb"
-        private const val HAIR_CACHE_NAME = "footnombo_real_hair_styles.glb"
+        private const val MODEL_ASSET = "footnombo_reference_player.glb"
         private const val TAG = "Footnombo3D"
         init { Utils.init() }
     }
@@ -218,10 +215,10 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
     }
 
     private fun selectHair(style: String) {
-        val asset = hairAsset ?: return
+        val asset = modelViewer.asset ?: return
         val wanted = when (style) {
             "Короткая классика" -> "Hair_SimpleParted"
-            "Фейд", "Высокий фейд", "Короткий ёжик" -> "Hair_Buzzed"
+            "Фейд" -> "Hair_Buzzed"
             "Длинные волосы" -> "Hair_Long"
             "Пучки" -> "Hair_Buns"
             else -> "Hair_SimpleParted"
@@ -230,7 +227,9 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
         for (entity in asset.entities) {
             if (!rm.hasComponent(entity)) continue
             val name = asset.getName(entity) ?: ""
-            rm.setLayerMask(rm.getInstance(entity), 0x1, if (name == wanted) 0x1 else 0x0)
+            if (name.startsWith("Hair_")) {
+                rm.setLayerMask(rm.getInstance(entity), 0x1, if (name.startsWith(wanted)) 0x1 else 0x0)
+            }
         }
     }
 
@@ -277,35 +276,18 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
     private fun loadModel() {
         Thread {
             try {
-                val file = File(context.cacheDir, CACHE_NAME)
-                if (!file.exists() || file.length() < 100_000L) {
-                    val connection = (URL(MODEL_URL).openConnection() as HttpURLConnection).apply {
-                        connectTimeout = 20_000
-                        readTimeout = 45_000
-                        requestMethod = "GET"
-                        instanceFollowRedirects = true
-                    }
-                    connection.connect()
-                    if (connection.responseCode !in 200..299) {
-                        throw IllegalStateException("HTTP " + connection.responseCode)
-                    }
-                    connection.inputStream.use { input ->
-                        file.outputStream().use { output -> input.copyTo(output, 64 * 1024) }
-                    }
-                    connection.disconnect()
-                }
-                val bytes = file.readBytes()
+                val bytes = context.assets.open(MODEL_ASSET).use { it.readBytes() }
                 post {
                     if (!::modelViewer.isInitialized || !isAttachedToWindow) return@post
                     modelViewer.loadModelGlb(ByteBuffer.wrap(bytes))
                     modelViewer.transformToUnitCube()
+                    selectHair(player.hair)
                     applySkinTone(player.skin)
-                    loadHairStyles()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "3D player load failed", e)
+                Log.e(TAG, "Bundled 3D player load failed", e)
                 post {
-                    Toast.makeText(context, "Не удалось загрузить 3D-модель футболиста", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Не удалось загрузить 3D-модель игрока", Toast.LENGTH_LONG).show()
                 }
             }
         }.start()
