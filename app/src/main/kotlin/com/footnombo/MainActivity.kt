@@ -104,8 +104,10 @@ class MainActivity : Activity() {
     private fun showCareer(){
         base("Моя карьера")
         val c=card();c.addView(tv(p.name,22f,true));c.addView(tv(p.position+" • №"+p.number+" • 18 лет",14f));c.addView(tv("FC North City • 7-е место в лиге"));c.addView(tv("Общий рейтинг: "+p.overall,20f,true));content.addView(c)
-        val s=card();s.addView(tv("Сезон 1 • Неделя 4",18f,true));s.addView(tv("Матчи: "+p.matches+"   Голы: "+p.goals+"   Голевые: "+p.assists));s.addView(tv("Доверие тренера: "+p.trust+"%   Уверенность: "+p.morale+"%"));content.addView(s)
-        val e=card();e.addView(tv("Следующий матч",17f,true));e.addView(tv("FC North City — Red Falcons"));content.addView(e);nav()
+        val s=card();s.addView(tv("Сезон "+p.season+" • Неделя "+p.week,18f,true));s.addView(tv("Матчи: "+p.matches+"   Голы: "+p.goals+"   Голевые: "+p.assists));s.addView(tv("Доверие: "+p.trust+"%   Мораль: "+p.morale+"%   Репутация: "+p.reputation));s.addView(tv("Баланс: €"+p.money+"   Контракт: "+p.contractWeeks+" нед."));content.addView(s)
+        if(!eventShown) content.addView(button("📖 Событие недели"){showEvent()})
+        val e=card();e.addView(tv("Следующий матч",17f,true));e.addView(tv(p.club+" — Red Falcons"));content.addView(e)
+        content.addView(button("⏭ Следующая неделя"){advanceWeek()});nav()
     }
     private fun showEvent(){
         eventShown=true
