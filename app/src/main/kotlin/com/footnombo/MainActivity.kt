@@ -188,6 +188,35 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
         }
     }
 
+    private fun attachHairToHead(body: FilamentAsset, hair: FilamentAsset) {
+        val tm = modelViewer.engine.transformManager
+        val headNames = setOf(
+            "Head", "head", "HEAD",
+            "mixamorig:Head", "mixamorig_Head",
+            "Armature_Head", "head_joint", "Head_JNT"
+        )
+        var headEntity = 0
+        for (entity in body.entities) {
+            val name = body.getName(entity) ?: continue
+            if (headNames.any { name.equals(it, ignoreCase = true) || name.contains(it, ignoreCase = true) }) {
+                headEntity = entity
+                break
+            }
+        }
+
+        val target = if (headEntity != 0 && tm.getInstance(headEntity).isValid) headEntity else body.root
+        val targetTransform = FloatArray(16)
+        tm.getTransform(tm.getInstance(target), targetTransform)
+
+        // Hair GLB is authored around its own root. Put that root on the player's head,
+        // then compensate for the head-node origin so the mesh sits on the scalp.
+        tm.setTransform(tm.getInstance(hair.root), targetTransform)
+
+        // Keep the hair asset from inheriting any body-root offset that caused the
+        // previous floating-at-the-neck behaviour.
+        Log.d(TAG, "Hair attached to " + (body.getName(target) ?: "body-root"))
+    }
+
     private fun selectHair(style: String) {
         val asset = hairAsset ?: return
         val wanted = when (style) {
@@ -236,10 +265,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
                         resources.asyncBeginLoad(asset)
                         asset.releaseSourceData()
                         modelViewer.asset?.let { body ->
-                            val tm = engine.transformManager
-                            val bodyTransform = FloatArray(16)
-                            tm.getTransform(tm.getInstance(body.root), bodyTransform)
-                            tm.setTransform(tm.getInstance(asset.root), bodyTransform)
+                            attachHairToHead(body, asset)
                         }
                         selectHair(player.hair)
                     } catch (e: Exception) { Log.e(TAG, "Hair asset load failed", e) }
