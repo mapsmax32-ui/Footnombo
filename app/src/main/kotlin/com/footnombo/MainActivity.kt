@@ -6,11 +6,6 @@ import android.graphics.*
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
-import android.opengl.GLSurfaceView
-import android.opengl.GLES20
-import android.opengl.Matrix
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import android.widget.*
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -39,7 +34,12 @@ data class Player(
     var week: Int = 1,
     var money: Int = 1200,
     var contractWeeks: Int = 24,
-    var club: String = "FC North Ciclass PlayerPreviewView(context: Activity, private var player: Player) : android.opengl.GLSurfaceView(context) {
+    var club: String = "FC North City",
+    var injuryWeeks: Int = 0,
+    var reputation: Int = 20
+) { val overall get() = ((attack + pass + speed + physical) / 4.0).roundToInt() }
+
+class PlayerPreviewView(context: Activity, private var player: Player) : android.opengl.GLSurfaceView(context) {
     private val renderer = Player3DRenderer()
     private var touchX = 0f
 
