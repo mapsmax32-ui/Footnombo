@@ -19,6 +19,10 @@ import com.google.android.filament.utils.Utils
 import com.google.android.filament.EntityManager
 import com.google.android.filament.LightManager
 import com.google.android.filament.utils.Manipulator
+import com.google.android.filament.gltfio.AssetLoader
+import com.google.android.filament.gltfio.FilamentAsset
+import com.google.android.filament.gltfio.ResourceLoader
+import com.google.android.filament.gltfio.UbershaderProvider
 import android.widget.*
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -57,12 +61,17 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
     companion object {
         private const val MODEL_URL = "https://raw.githubusercontent.com/kendrekaran/striker-3d/main/assets/player.glb"
         private const val CACHE_NAME = "footnombo_male_soccer_player.glb"
+        private const val HAIR_URL = "https://raw.githubusercontent.com/Quizball-trivia/web/c1d268834751bcc405054176b45e784eda6b6379/public/assets/demos/score/player-hair.glb"
+        private const val HAIR_CACHE_NAME = "footnombo_real_hair_styles.glb"
         private const val TAG = "Footnombo3D"
         init { Utils.init() }
     }
 
     private val surface = SurfaceView(context)
     private lateinit var modelViewer: ModelViewer
+    private var hairAsset: FilamentAsset? = null
+    private var hairLoader: AssetLoader? = null
+    private var hairResourceLoader: ResourceLoader? = null
     private val choreographer = Choreographer.getInstance()
     private var framePosted = false
 
@@ -82,7 +91,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
         player.skin = skin
         player.hair = hair
         player.position = position
-        if (::modelViewer.isInitialized) applySkinTone(skin)
+        if (::modelViewer.isInitialized) { applySkinTone(skin); selectHair(hair) }
     }
 
     private fun initViewer() {
@@ -205,6 +214,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
                     modelViewer.loadModelGlb(ByteBuffer.wrap(bytes))
                     modelViewer.transformToUnitCube()
                     applySkinTone(player.skin)
+                    loadHairStyles()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "3D player load failed", e)
