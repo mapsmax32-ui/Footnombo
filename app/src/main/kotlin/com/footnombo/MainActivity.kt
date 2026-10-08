@@ -47,7 +47,6 @@ class PlayerPreviewView(context: Activity, private var player: Player) : View(co
     private var previewHair = "Тёмная"
     private var previewPosition = "ЦАП"
 
-    constructor(activity: Activity, p: Player) : this(p) { paint.isAntiAlias = true }
 
     fun update(height: Int, weight: Int, skin: String, hair: String, position: String) {
         previewHeight = height
