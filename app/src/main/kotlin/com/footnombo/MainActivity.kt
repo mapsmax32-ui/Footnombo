@@ -354,11 +354,6 @@ class PlayerPreviewView(context: Activity, private var player: Player) : android
         }
     }
 }
-lor.argb(220,255,255,255)
-        paint.textSize = 13f
-        canvas.drawText("$previewHeight см  •  $previewWeight кг", cx, h-13f, paint)
-    }
-}
 class MainActivity : Activity() {
     private val p = Player()
     private lateinit var root: LinearLayout
