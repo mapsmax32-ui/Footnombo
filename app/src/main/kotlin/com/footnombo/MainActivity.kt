@@ -204,7 +204,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
             }
         }
 
-        val target = if (headEntity != 0 && tm.getInstance(headEntity).isValid) headEntity else body.root
+        val target = if (headEntity != 0) headEntity else body.root
         val targetTransform = FloatArray(16)
         tm.getTransform(tm.getInstance(target), targetTransform)
 
