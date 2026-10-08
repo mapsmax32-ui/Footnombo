@@ -39,7 +39,7 @@ data class Player(
     var reputation: Int = 20
 ) { val overall get() = ((attack + pass + speed + physical) / 4.0).roundToInt() }
 
-class PlayerPreviewView(context: Activity, private var player: Player) : View(context) {
+class PlayerPreviewView(context: Activity, private var player: Player) : ImageView(context) {
     private var hCm = 180
     private var wKg = 72
     private var skinName = "Средняя"
@@ -49,8 +49,10 @@ class PlayerPreviewView(context: Activity, private var player: Player) : View(co
     private var downX = 0f
 
     init {
-        setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-        setBackgroundColor(Color.rgb(12, 25, 20))
+        scaleType = ScaleType.CENTER_CROP
+        setBackgroundColor(Color.rgb(10, 32, 23))
+        isClickable = true
+        render()
     }
 
     fun update(height: Int, weight: Int, skin: String, hair: String, position: String) {
@@ -59,7 +61,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : View(co
         skinName = skin
         hairName = hair
         positionName = position
-        postInvalidate()
+        render()
     }
 
     override fun onTouchEvent(event: android.view.MotionEvent): Boolean {
@@ -71,119 +73,123 @@ class PlayerPreviewView(context: Activity, private var player: Player) : View(co
             android.view.MotionEvent.ACTION_MOVE -> {
                 rotation += (event.x - downX) * 0.7f
                 downX = event.x
-                invalidate()
+                render()
                 return true
             }
         }
         return true
     }
 
-    override fun onDraw(c: Canvas) {
-        super.onDraw(c)
-        val w = width.toFloat()
-        val h = height.toFloat()
+    private fun render() {
+        val density = resources.displayMetrics.density
+        val bw = (320f * density).roundToInt().coerceAtLeast(320)
+        val bh = (285f * density).roundToInt().coerceAtLeast(285)
+        val bmp = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
+        val c = Canvas(bmp)
+        val w = bw.toFloat()
+        val h = bh.toFloat()
         val cx = w / 2f
-        val floorY = h * 0.91f
-        val scale = (h / 300f).coerceIn(0.72f, 1.12f)
+        val scale = density
         val lean = kotlin.math.sin(Math.toRadians(rotation.toDouble())).toFloat()
         val turn = kotlin.math.cos(Math.toRadians(rotation.toDouble())).toFloat()
         val bodyW = (wKg / 72f).coerceIn(.82f, 1.22f)
         val bodyH = (hCm / 180f).coerceIn(.86f, 1.14f)
 
         val bg = Paint(Paint.ANTI_ALIAS_FLAG)
-        bg.shader = LinearGradient(0f, 0f, 0f, h, Color.rgb(18, 43, 35), Color.rgb(7, 17, 14), Shader.TileMode.CLAMP)
+        bg.shader = LinearGradient(0f, 0f, 0f, h, Color.rgb(24, 78, 52), Color.rgb(5, 22, 15), Shader.TileMode.CLAMP)
         c.drawRect(0f, 0f, w, h, bg)
 
         val glow = Paint(Paint.ANTI_ALIAS_FLAG)
-        glow.color = Color.argb(35, 90, 255, 170)
-        c.drawCircle(cx, h * .42f, w * .34f, glow)
+        glow.color = Color.argb(55, 100, 255, 170)
+        c.drawCircle(cx, h * .40f, w * .34f, glow)
 
-        val shadow = Paint(Paint.ANTI_ALIAS_FLAG)
-        shadow.color = Color.argb(100, 0, 0, 0)
-        c.drawOval(cx - 48f*scale, floorY - 7f, cx + 48f*scale, floorY + 10f, shadow)
+        val floor = Paint(Paint.ANTI_ALIAS_FLAG)
+        floor.color = Color.argb(120, 0, 0, 0)
+        c.drawOval(cx - 58f*scale, h*.88f, cx + 58f*scale, h*.94f, floor)
 
-        fun colorForSkin(): Int = when (skinName) {
-            "Светлая" -> Color.rgb(231, 177, 138)
-            "Смуглая" -> Color.rgb(172, 108, 67)
-            "Тёмная" -> Color.rgb(98, 56, 36)
-            else -> Color.rgb(199, 140, 96)
+        fun skinColor() = when (skinName) {
+            "Светлая" -> Color.rgb(242, 190, 153)
+            "Смуглая" -> Color.rgb(181, 112, 72)
+            "Тёмная" -> Color.rgb(105, 60, 39)
+            else -> Color.rgb(211, 151, 106)
         }
-        fun hairColor(): Int = when (hairName) {
-            "Светлая" -> Color.rgb(205, 166, 80)
-            "Каштановая" -> Color.rgb(105, 57, 28)
-            "Короткая" -> Color.rgb(35, 28, 24)
-            else -> Color.rgb(20, 20, 20)
+        fun hairColor() = when (hairName) {
+            "Светлая" -> Color.rgb(220, 180, 82)
+            "Каштановая" -> Color.rgb(112, 60, 30)
+            "Короткая" -> Color.rgb(28, 25, 24)
+            else -> Color.rgb(12, 12, 12)
         }
-        fun shirtColor(): Int = when (positionName) {
-            "ЦФ" -> Color.rgb(215, 48, 45)
-            "ЦЗ" -> Color.rgb(48, 92, 210)
-            "ВР" -> Color.rgb(225, 174, 40)
-            else -> Color.rgb(35, 178, 92)
+        fun shirtColor() = when (positionName) {
+            "ЦФ" -> Color.rgb(220, 55, 50)
+            "ЦЗ" -> Color.rgb(55, 105, 225)
+            "ВР" -> Color.rgb(235, 185, 45)
+            else -> Color.rgb(35, 190, 98)
         }
 
-        val skin = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = colorForSkin() }
+        val skin = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = skinColor() }
         val hair = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = hairColor() }
         val shirt = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = shirtColor() }
         val shorts = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = darken(shirt.color, .58f) }
-        val sock = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(232, 234, 232) }
-        val boot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(25, 28, 32) }
+        val white = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+        val boot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(18, 20, 24) }
 
         c.save()
-        c.translate(cx + lean * 14f * scale, 0f)
+        c.translate(cx + lean * 18f*scale, 0f)
 
-        val headY = h * .20f
-        val torsoTop = h * .34f
-        val torsoBottom = h * .57f
-        val hipY = h * .60f
-        val legBottom = h * .86f
-        val shoulder = 46f * bodyW * scale
-        val leg = 15f * bodyW * scale
+        val headY = h*.25f
+        val torsoTop = h*.37f
+        val torsoBottom = h*.59f
+        val hipY = h*.60f
+        val legBottom = h*.86f
+        val shoulder = 47f*bodyW*scale
+        val leg = 15f*bodyW*scale
+        val legHeight = (legBottom-hipY)*bodyH.coerceIn(.9f,1.1f)
 
-        // Legs
-        rounded(c, -leg*1.15f, hipY, leg*2.3f, legBottom-hipY, 9f, shorts)
-        rounded(c, 0f, hipY, leg*2.3f, legBottom-hipY, 9f, shorts)
-        rounded(c, -leg*1.05f, h*.69f, leg*2.1f, h*.13f, 7f, sock)
-        rounded(c, 0f, h*.69f, leg*2.1f, h*.13f, 7f, sock)
-        rounded(c, -leg*1.18f, h*.80f, leg*2.45f, h*.09f, 7f, boot)
-        rounded(c, -leg*1.18f + 8f*scale, h*.86f-7f*scale, leg*2.9f, 10f*scale, 5f, boot)
-        rounded(c, -2f*scale, h*.80f, leg*2.45f, h*.09f, 7f, boot)
-        rounded(c, 4f*scale, h*.86f-7f*scale, leg*2.9f, 10f*scale, 5f, boot)
+        rounded(c, -leg*1.15f, hipY, leg*2.3f, legHeight, 9f*scale, shorts)
+        rounded(c, 0f, hipY, leg*2.3f, legHeight, 9f*scale, shorts)
+        rounded(c, -leg*1.05f, h*.69f, leg*2.1f, h*.13f, 7f*scale, white)
+        rounded(c, 0f, h*.69f, leg*2.1f, h*.13f, 7f*scale, white)
+        rounded(c, -leg*1.2f, h*.80f, leg*2.55f, h*.08f, 7f*scale, boot)
+        rounded(c, -leg*.9f, h*.86f, leg*3.0f, 11f*scale, 5f*scale, boot)
+        rounded(c, -2f*scale, h*.80f, leg*2.55f, h*.08f, 7f*scale, boot)
+        rounded(c, 4f*scale, h*.86f, leg*3.0f, 11f*scale, 5f*scale, boot)
 
-        // Torso
-        val torso = RectF(-shoulder, torsoTop, shoulder, torsoBottom)
-        c.drawRoundRect(torso, 18f*scale, 18f*scale, shirt)
-        c.drawOval(RectF(-shoulder*.88f, torsoTop-5f*scale, shoulder*.88f, torsoTop+28f*scale), shirt)
-        rounded(c, -shoulder*.78f, hipY-8f*scale, shoulder*1.56f, 35f*scale, 12f, shorts)
+        c.drawRoundRect(RectF(-shoulder, torsoTop, shoulder, torsoBottom), 18f*scale, 18f*scale, shirt)
+        rounded(c, -shoulder*.76f, hipY-5f*scale, shoulder*1.52f, 34f*scale, 10f*scale, shorts)
 
-        // Arms
-        val armW = 18f * scale
-        rounded(c, -shoulder-15f*scale, torsoTop+8f*scale, armW, 88f*scale, 9f, shirt)
-        c.drawCircle(-shoulder-6f*scale, torsoTop+96f*scale, 13f*scale, skin)
-        rounded(c, shoulder-3f*scale, torsoTop+8f*scale, armW, 88f*scale, 9f, shirt)
-        c.drawCircle(shoulder+6f*scale, torsoTop+96f*scale, 13f*scale, skin)
+        val armW = 18f*scale
+        rounded(c, -shoulder-15f*scale, torsoTop+8f*scale, armW, 82f*scale, 9f*scale, shirt)
+        c.drawCircle(-shoulder-6f*scale, torsoTop+94f*scale, 13f*scale, skin)
+        rounded(c, shoulder-3f*scale, torsoTop+8f*scale, armW, 82f*scale, 9f*scale, shirt)
+        c.drawCircle(shoulder+6f*scale, torsoTop+94f*scale, 13f*scale, skin)
 
-        // Neck and head
-        rounded(c, -14f*scale, torsoTop-23f*scale, 28f*scale, 30f*scale, 9f, skin)
-        c.drawOval(RectF(-30f*scale, headY-32f*scale, 30f*scale, headY+32f*scale), skin)
-        c.drawArc(RectF(-30f*scale, headY-35f*scale, 30f*scale, headY+25f*scale), 180f, 180f, true, hair)
-        c.drawOval(RectF(-28f*scale, headY-35f*scale, 28f*scale, headY-10f*scale), hair)
+        rounded(c, -14f*scale, torsoTop-22f*scale, 28f*scale, 28f*scale, 8f*scale, skin)
+        c.drawOval(RectF(-31f*scale, headY-34f*scale, 31f*scale, headY+34f*scale), skin)
+        c.drawArc(RectF(-31f*scale, headY-37f*scale, 31f*scale, headY+26f*scale), 180f, 180f, true, hair)
+        c.drawOval(RectF(-29f*scale, headY-37f*scale, 29f*scale, headY-9f*scale), hair)
 
-        // Face / jersey details
-        val detail = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textAlign = Paint.Align.CENTER; textSize = 22f*scale; typeface = Typeface.DEFAULT_BOLD }
-        c.drawText("10", 0f, torsoTop+72f*scale, detail)
-        val eye = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(35,25,20) }
-        c.drawCircle(-10f*turn*scale, headY-2f*scale, 2.2f*scale, eye)
-        c.drawCircle(10f*turn*scale, headY-2f*scale, 2.2f*scale, eye)
+        val eye = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(30, 24, 20) }
+        c.drawCircle(-10f*turn*scale, headY-2f*scale, 2.4f*scale, eye)
+        c.drawCircle(10f*turn*scale, headY-2f*scale, 2.4f*scale, eye)
 
-        c.restore()
-
-        val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        val number = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
             textAlign = Paint.Align.CENTER
-            textSize = 13f * resources.displayMetrics.density
+            textSize = 25f*scale
             typeface = Typeface.DEFAULT_BOLD
         }
-        c.drawText("Предпросмотр игрока", cx, h * .965f, label)
+        c.drawText(player.number.toString(), 0f, torsoTop+75f*scale, number)
+
+        val title = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textAlign = Paint.Align.CENTER
+            textSize = 13f*scale
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        c.drawText("ПРЕДПРОСМОТР ИГРОКА", cx, h*.96f, title)
+        c.restore()
+
+        setImageBitmap(bmp)
     }
 
     private fun rounded(c: Canvas, x: Float, y: Float, w: Float, h: Float, r: Float, p: Paint) {
