@@ -39,7 +39,7 @@ data class Player(
     var reputation: Int = 20
 ) { val overall get() = ((attack + pass + speed + physical) / 4.0).roundToInt() }
 
-class PlayerPreviewView(private var player: Player) : View(null) {
+class PlayerPreviewView(context: Activity, private var player: Player) : View(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var previewHeight = 180
     private var previewWeight = 72
