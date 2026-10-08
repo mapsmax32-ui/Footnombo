@@ -288,6 +288,15 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
         framePosted = false
         if (::modelViewer.isInitialized) {
             try {
+                hairAsset?.let { asset ->
+                    modelViewer.scene.removeEntities(asset.entities)
+                    hairResourceLoader?.asyncCancelLoad()
+                    hairResourceLoader?.evictResourceData()
+                    hairLoader?.destroyAsset(asset)
+                }
+                hairAsset = null
+                hairResourceLoader = null
+                hairLoader = null
                 modelViewer.destroy()
             } catch (_: Exception) {}
         }
@@ -421,9 +430,10 @@ class MainActivity : Activity() {
             addView(tv("Выбери причёску", 18f, true))
             addView(tv("Выбранная причёска сразу отображается на превью.", 13f))
             val hairstyles = arrayOf(
-                "Короткая классика","Фейд","Высокий фейд","Андеркат",
-                "Короткий ёжик","Текстурный кроп","Кудри","Объёмные кудри",
-                "Ирокез","Длинные назад","Дреды","Косички"
+                "Короткая классика",
+                "Фейд",
+                "Длинные волосы",
+                "Пучки"
             )
             val grid = GridLayout(this@MainActivity).apply {
                 columnCount = 3
