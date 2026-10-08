@@ -7,6 +7,7 @@ import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.Choreographer
+import android.view.SurfaceView
 import android.util.Log
 import java.io.File
 import java.net.HttpURLConnection
@@ -91,7 +92,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
             modelViewer.view.ambientOcclusionOptions.apply { enabled = true }
         val clear = modelViewer.renderer.clearOptions
         clear.clear = true
-        clear.clearColor = floatArrayOf(0.025f, 0.07f, 0.045f, 1f)
+        clear.clearColor = doubleArrayOf(0.025, 0.07, 0.045, 1.0)
         modelViewer.renderer.clearOptions = clear
         startFrames()
         loadModel()
