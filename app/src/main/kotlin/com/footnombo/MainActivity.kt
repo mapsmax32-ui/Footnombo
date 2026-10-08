@@ -50,6 +50,63 @@ data class Player(
     var reputation: Int = 20
 ) { val overall get() = ((attack + pass + speed + physical) / 4.0).roundToInt() }
 
+class HairOverlayView(context: android.content.Context) : View(context) {
+    private var style = "Короткая классика"
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(24, 20, 18) }
+    fun setStyle(value: String) { style = value; invalidate() }
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val cx = width / 2f
+        val cy = height * 0.13f
+        val s = (width.coerceAtMost(height) * 0.13f).coerceAtLeast(18f)
+        paint.color = when {
+            style.contains("свет", true) -> Color.rgb(90, 68, 45)
+            style.contains("рыж", true) -> Color.rgb(105, 45, 22)
+            else -> Color.rgb(28, 22, 19)
+        }
+        val path = Path()
+        when (style) {
+            "Фейд", "Высокий фейд", "Короткая классика", "Короткий ёжик" -> {
+                canvas.drawOval(cx-s, cy-s*0.62f, cx+s, cy+s*0.42f, paint)
+                if (style.contains("фейд", true)) {
+                    paint.alpha = 150
+                    canvas.drawOval(cx-s*0.78f, cy-s*0.48f, cx+s*0.78f, cy+s*0.25f, paint)
+                    paint.alpha = 255
+                }
+            }
+            "Андеркат", "Текстурный кроп" -> {
+                canvas.drawOval(cx-s*1.05f, cy-s*0.58f, cx+s*1.05f, cy+s*0.38f, paint)
+                canvas.drawRect(cx-s*0.82f, cy-s*0.05f, cx+s*0.82f, cy+s*0.34f, paint)
+            }
+            "Кудри", "Объёмные кудри" -> {
+                val r = if (style == "Объёмные кудри") s*0.28f else s*0.22f
+                for (i in -4..4) for (j in -2..2) {
+                    canvas.drawCircle(cx + i*r*0.75f, cy + j*r*0.7f, r, paint)
+                }
+            }
+            "Ирокез" -> {
+                canvas.drawRoundRect(cx-s*0.35f, cy-s*0.95f, cx+s*0.35f, cy+s*0.25f, s*0.18f, s*0.18f, paint)
+            }
+            "Длинные назад" -> {
+                canvas.drawOval(cx-s*0.95f, cy-s*0.55f, cx+s*1.18f, cy+s*0.52f, paint)
+                canvas.drawOval(cx+s*0.35f, cy-s*0.15f, cx+s*1.35f, cy+s*0.72f, paint)
+            }
+            "Дреды" -> {
+                for (i in -4..4) {
+                    val x = cx + i*s*0.25f
+                    canvas.drawRoundRect(x-s*0.10f, cy-s*0.55f, x+s*0.10f, cy+s*0.85f, s*0.1f, s*0.1f, paint)
+                }
+            }
+            "Косички" -> {
+                for (i in -3..3) {
+                    val x = cx + i*s*0.28f
+                    canvas.drawRoundRect(x-s*0.08f, cy-s*0.55f, x+s*0.08f, cy+s*0.95f, s*0.08f, s*0.08f, paint)
+                }
+            }
+        }
+    }
+}
+
 class PlayerPreviewView(context: Activity, private var player: Player) : FrameLayout(context) {
     companion object {
         private const val MODEL_URL = "https://www.innerscene.com/api/library/soccer-player-standing-3d-person-team-sports-f55b1b4f/download"
@@ -59,6 +116,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
     }
 
     private val surface = SurfaceView(context)
+    private val hairOverlay = HairOverlayView(context)
     private lateinit var modelViewer: ModelViewer
     private val choreographer = Choreographer.getInstance()
     private var framePosted = false
@@ -66,6 +124,8 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
     init {
         setBackgroundColor(Color.rgb(8, 18, 14))
         addView(surface, LayoutParams(-1, -1))
+        addView(hairOverlay, LayoutParams(-1, -1))
+        hairOverlay.setStyle(player.hair)
         surface.setOnTouchListener { _, event ->
             if (::modelViewer.isInitialized) modelViewer.onTouchEvent(event)
             true
@@ -79,6 +139,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
         player.skin = skin
         player.hair = hair
         player.position = position
+        hairOverlay.setStyle(hair)
     }
 
     private fun initViewer() {
