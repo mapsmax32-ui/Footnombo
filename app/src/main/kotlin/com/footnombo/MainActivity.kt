@@ -233,46 +233,6 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
         }
     }
 
-    private fun loadHairStyles() {
-        Thread {
-            try {
-                val file = File(context.cacheDir, HAIR_CACHE_NAME)
-                if (!file.exists() || file.length() < 100_000L) {
-                    val connection = (URL(HAIR_URL).openConnection() as HttpURLConnection).apply {
-                        connectTimeout = 20_000
-                        readTimeout = 45_000
-                        requestMethod = "GET"
-                        instanceFollowRedirects = true
-                    }
-                    connection.connect()
-                    if (connection.responseCode !in 200..299) throw IllegalStateException("Hair HTTP " + connection.responseCode)
-                    connection.inputStream.use { input -> file.outputStream().use { output -> input.copyTo(output, 64 * 1024) } }
-                    connection.disconnect()
-                }
-                val bytes = file.readBytes()
-                post {
-                    if (!::modelViewer.isInitialized || !isAttachedToWindow) return@post
-                    try {
-                        val engine = modelViewer.engine
-                        val loader = AssetLoader(engine, UbershaderProvider(engine), EntityManager.get())
-                        val resources = ResourceLoader(engine)
-                        val asset = loader.createAsset(ByteBuffer.wrap(bytes)) ?: throw IllegalStateException("Hair asset parse failed")
-                        hairLoader = loader
-                        hairResourceLoader = resources
-                        hairAsset = asset
-                        modelViewer.scene.addEntities(asset.entities)
-                        resources.asyncBeginLoad(asset)
-                        asset.releaseSourceData()
-                        modelViewer.asset?.let { body ->
-                            attachHairToHead(body, asset)
-                        }
-                        selectHair(player.hair)
-                    } catch (e: Exception) { Log.e(TAG, "Hair asset load failed", e) }
-                }
-            } catch (e: Exception) { Log.e(TAG, "Hair download failed", e) }
-        }.start()
-    }
-
     private fun loadModel() {
         Thread {
             try {
