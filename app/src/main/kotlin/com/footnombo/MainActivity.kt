@@ -133,6 +133,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : android
         private var lightHandle = 0
         private var normalMatrixHandle = 0
         private var positionHandle = 0
+        private var shaderReady = false
 
         private val vertexShader = """
             uniform mat4 uMvp;
@@ -163,14 +164,15 @@ class PlayerPreviewView(context: Activity, private var player: Player) : android
 
         override fun onSurfaceCreated(gl: javax.microedition.khronos.opengles.GL10?, config: javax.microedition.khronos.egl.EGLConfig?) {
             program = makeProgram(vertexShader, fragmentShader)
+            shaderReady = program != 0
             sphere = makeSphere(1f, 28, 18)
             cylinder = makeCylinder(1f, 1f, 24)
             mvpHandle = android.opengl.GLES20.glGetUniformLocation(program, "uMvp")
-            normalHandle = android.opengl.GLES20.glGetAttribLocation(program, "aNormal")
+            normalHandle = 1
             colorHandle = android.opengl.GLES20.glGetUniformLocation(program, "uColor")
             lightHandle = android.opengl.GLES20.glGetUniformLocation(program, "uLight")
             normalMatrixHandle = android.opengl.GLES20.glGetUniformLocation(program, "uNormal")
-            positionHandle = android.opengl.GLES20.glGetAttribLocation(program, "aPosition")
+            positionHandle = 0
             android.opengl.GLES20.glDisable(android.opengl.GLES20.GL_CULL_FACE)
             android.opengl.GLES20.glEnable(android.opengl.GLES20.GL_DEPTH_TEST)
             android.opengl.GLES20.glClearColor(0.055f, 0.10f, 0.08f, 1f)
@@ -186,6 +188,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : android
 
         override fun onDrawFrame(gl: javax.microedition.khronos.opengles.GL10?) {
             android.opengl.GLES20.glClear(android.opengl.GLES20.GL_COLOR_BUFFER_BIT or android.opengl.GLES20.GL_DEPTH_BUFFER_BIT)
+            if (!shaderReady) return
             android.opengl.GLES20.glUseProgram(program)
             android.opengl.GLES20.glUniform3f(lightHandle, -0.45f, 0.85f, 1.0f)
 
@@ -341,17 +344,39 @@ class PlayerPreviewView(context: Activity, private var player: Player) : android
         private fun makeProgram(vs: String, fs: String): Int {
             fun compile(type: Int, source: String): Int {
                 val shader = android.opengl.GLES20.glCreateShader(type)
+                if (shader == 0) return 0
                 android.opengl.GLES20.glShaderSource(shader, source)
                 android.opengl.GLES20.glCompileShader(shader)
+                val ok = IntArray(1)
+                android.opengl.GLES20.glGetShaderiv(shader, android.opengl.GLES20.GL_COMPILE_STATUS, ok, 0)
+                if (ok[0] == 0) {
+                    android.util.Log.e("FootnomboGL", android.opengl.GLES20.glGetShaderInfoLog(shader))
+                    android.opengl.GLES20.glDeleteShader(shader)
+                    return 0
+                }
                 return shader
             }
             val v = compile(android.opengl.GLES20.GL_VERTEX_SHADER, vs)
             val f = compile(android.opengl.GLES20.GL_FRAGMENT_SHADER, fs)
-            return android.opengl.GLES20.glCreateProgram().also {
-                android.opengl.GLES20.glAttachShader(it, v)
-                android.opengl.GLES20.glAttachShader(it, f)
-                android.opengl.GLES20.glLinkProgram(it)
+            if (v == 0 || f == 0) return 0
+            val p = android.opengl.GLES20.glCreateProgram()
+            if (p == 0) return 0
+            android.opengl.GLES20.glAttachShader(p, v)
+            android.opengl.GLES20.glAttachShader(p, f)
+            android.opengl.GLES20.glBindAttribLocation(p, 0, "aPosition")
+            android.opengl.GLES20.glBindAttribLocation(p, 1, "aNormal")
+            android.opengl.GLES20.glLinkProgram(p)
+            val linked = IntArray(1)
+            android.opengl.GLES20.glGetProgramiv(p, android.opengl.GLES20.GL_LINK_STATUS, linked, 0)
+            if (linked[0] == 0) {
+                android.util.Log.e("FootnomboGL", android.opengl.GLES20.glGetProgramInfoLog(p))
+                android.opengl.GLES20.glDeleteProgram(p)
+                return 0
             }
+            android.opengl.GLES20.glDeleteShader(v)
+            android.opengl.GLES20.glDeleteShader(f)
+            return p
+        }
         }
     }
 }
