@@ -11,7 +11,8 @@ jobs:
       - name: Generate reference 3D player
         run: |
           python3 -m pip install trimesh
-          python3 tools/generate_player.py\n      - uses: actions/setup-java@v4
+          python3 tools/generate_player.py
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
