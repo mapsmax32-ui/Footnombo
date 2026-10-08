@@ -18,16 +18,7 @@ import com.google.android.filament.Colors
 import com.google.android.filament.utils.Utils
 import com.google.android.filament.EntityManager
 import com.google.android.filament.LightManager
-import com.google.android.filament.RenderableManager
-import com.google.android.filament.VertexBuffer
-import com.google.android.filament.IndexBuffer
-import com.google.android.filament.Material
-import com.google.android.filament.filamat.MaterialBuilder
 import com.google.android.filament.utils.Manipulator
-import java.nio.ByteOrder
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.PI
 import android.widget.*
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -72,10 +63,6 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
 
     private val surface = SurfaceView(context)
     private lateinit var modelViewer: ModelViewer
-    private var hairEntity = 0
-    private var hairVertexBuffer: VertexBuffer? = null
-    private var hairIndexBuffer: IndexBuffer? = null
-    private var hairMaterial: Material? = null
     private val choreographer = Choreographer.getInstance()
     private var framePosted = false
 
@@ -192,12 +179,6 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
         }
     }
 
-    private fun rebuildHair(style: String) {
-        // The male GLB already contains hair attached to the head.
-        // Do not add procedural geometry: it was the source of floating/neck hair.
-        if (::modelViewer.isInitialized) applySkinTone(player.skin)
-    }
-
     private fun loadModel() {
         Thread {
             try {
@@ -239,14 +220,6 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
         framePosted = false
         if (::modelViewer.isInitialized) {
             try {
-                if (hairEntity != 0) {
-                    modelViewer.engine.renderableManager.destroy(hairEntity)
-                    modelViewer.engine.transformManager.destroy(hairEntity)
-                    EntityManager.get().destroy(hairEntity)
-                }
-                hairVertexBuffer?.let { modelViewer.engine.destroyVertexBuffer(it) }
-                hairIndexBuffer?.let { modelViewer.engine.destroyIndexBuffer(it) }
-                hairMaterial?.let { modelViewer.engine.destroyMaterial(it) }
                 modelViewer.destroy()
             } catch (_: Exception) {}
         }
