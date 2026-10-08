@@ -47,7 +47,6 @@ class PlayerPreviewView(context: Activity, private var player: Player) : View(co
     private var previewHair = "Тёмная"
     private var previewPosition = "ЦАП"
 
-
     fun update(height: Int, weight: Int, skin: String, hair: String, position: String) {
         previewHeight = height
         previewWeight = weight
@@ -57,90 +56,169 @@ class PlayerPreviewView(context: Activity, private var player: Player) : View(co
         invalidate()
     }
 
-    private fun skinColor(): Int = when(previewSkin) {
+    private fun skinColor(): Int = when (previewSkin) {
         "Светлая" -> Color.rgb(244, 204, 172)
         "Смуглая" -> Color.rgb(180, 125, 82)
         "Тёмная" -> Color.rgb(105, 68, 45)
         else -> Color.rgb(211, 157, 111)
     }
 
+    private fun shirtColor(): Int = when (previewPosition) {
+        "ЦФ" -> Color.rgb(205, 64, 58)
+        "ЦЗ" -> Color.rgb(55, 96, 180)
+        "ВР" -> Color.rgb(226, 174, 45)
+        else -> Color.rgb(28, 154, 88)
+    }
+
+    private fun hairColor(): Int = when (previewHair) {
+        "Светлая" -> Color.rgb(205, 178, 105)
+        "Каштановая" -> Color.rgb(105, 67, 40)
+        "Короткая" -> Color.rgb(48, 36, 31)
+        else -> Color.rgb(24, 24, 25)
+    }
+
+    private fun shade(base: Int, amount: Int): Int =
+        Color.rgb((Color.red(base) + amount).coerceIn(0,255),
+                  (Color.green(base) + amount).coerceIn(0,255),
+                  (Color.blue(base) + amount).coerceIn(0,255))
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val w = width.toFloat()
         val h = height.toFloat()
         paint.style = Paint.Style.FILL
-        paint.color = Color.rgb(21, 34, 29)
+
+        val bg = LinearGradient(0f, 0f, 0f, h, Color.rgb(22, 43, 35), Color.rgb(9, 22, 18), Shader.TileMode.CLAMP)
+        paint.shader = bg
         canvas.drawRoundRect(0f, 0f, w, h, 28f, 28f, paint)
+        paint.shader = null
 
-        val scale = (previewHeight / 180f).coerceIn(.82f, 1.18f)
-        val body = (previewWeight / 72f).coerceIn(.72f, 1.35f)
+        val heightScale = (previewHeight / 180f).coerceIn(.9f, 1.1f)
+        val widthScale = (previewWeight / 72f).coerceIn(.84f, 1.18f)
         val cx = w / 2f
-        val ground = h - 28f
-        val total = h * .73f * scale
-        val headR = (total * .085f).coerceIn(17f, 29f)
-        val headY = ground - total + headR
-        val shoulder = total * (.16f * body).coerceIn(.13f,.21f)
-        val torsoTop = headY + headR * 1.15f
-        val torsoBottom = ground - total * .31f
-        val legW = total * .075f * body
-        val legLen = ground - torsoBottom
-        val shirt = when(previewPosition) {
-            "ЦФ" -> Color.rgb(210, 70, 62)
-            "ЦЗ" -> Color.rgb(65, 105, 180)
-            else -> Color.rgb(31, 155, 91)
+        val ground = h - 42f
+        val figureH = (h * .76f * heightScale).coerceIn(h * .62f, h * .80f)
+        val headR = (figureH * .075f).coerceIn(18f, 25f)
+        val headY = ground - figureH + headR
+        val neckY = headY + headR * .82f
+        val shoulderW = figureH * .145f * widthScale
+        val waistW = shoulderW * .58f
+        val hipY = ground - figureH * .39f
+        val torsoBottom = ground - figureH * .36f
+        val torsoTop = neckY + headR * .45f
+        val upperLegLen = figureH * .25f
+        val lowerLegLen = figureH * .22f
+        val legGap = figureH * .035f
+        val skin = skinColor()
+        val shirt = shirtColor()
+        val darkShirt = shade(shirt, -32)
+        val lightShirt = shade(shirt, 28)
+
+        // Soft ground shadow
+        paint.color = Color.argb(100, 0, 0, 0)
+        canvas.drawOval(cx - figureH*.18f, ground-5f, cx + figureH*.18f, ground+11f, paint)
+
+        // Legs: tapered paths, not rectangles
+        fun legPath(left: Boolean): Path {
+            val s = if (left) -1f else 1f
+            val x = cx + s * legGap
+            return Path().apply {
+                moveTo(x - s*figureH*.045f, torsoBottom + figureH*.03f)
+                lineTo(x + s*figureH*.07f, torsoBottom + figureH*.03f)
+                lineTo(x + s*figureH*.065f, torsoBottom + upperLegLen)
+                lineTo(x + s*figureH*.05f, torsoBottom + upperLegLen + lowerLegLen)
+                lineTo(x - s*figureH*.055f, torsoBottom + upperLegLen + lowerLegLen)
+                lineTo(x - s*figureH*.075f, torsoBottom + upperLegLen)
+                close()
+            }
         }
+        paint.color = shade(shirt, -12)
+        canvas.drawPath(legPath(true), paint)
+        canvas.drawPath(legPath(false), paint)
 
-        paint.color = Color.argb(70, 0, 0, 0)
-        canvas.drawOval(cx - shoulder*1.25f, ground-9, cx + shoulder*1.25f, ground+5, paint)
+        // Socks and rounded boots
+        paint.color = Color.rgb(235, 235, 235)
+        canvas.drawRoundRect(cx-legGap-figureH*.065f, ground-figureH*.055f, cx-legGap+figureH*.035f, ground-figureH*.005f, 7f, 7f, paint)
+        canvas.drawRoundRect(cx+legGap-figureH*.035f, ground-figureH*.055f, cx+legGap+figureH*.065f, ground-figureH*.005f, 7f, 7f, paint)
+        paint.color = Color.rgb(27, 29, 34)
+        canvas.drawOval(cx-legGap-figureH*.09f, ground-figureH*.035f, cx-legGap+figureH*.07f, ground+2f, paint)
+        canvas.drawOval(cx+legGap-figureH*.07f, ground-figureH*.035f, cx+legGap+figureH*.09f, ground+2f, paint)
 
-        paint.color = shirt
+        // Torso with natural shoulders and waist
         val torso = Path().apply {
-            moveTo(cx-shoulder, torsoTop)
-            lineTo(cx+shoulder, torsoTop)
-            lineTo(cx+shoulder*.82f, torsoBottom)
-            lineTo(cx-shoulder*.82f, torsoBottom)
+            moveTo(cx-shoulderW, torsoTop)
+            cubicTo(cx-shoulderW*.78f, torsoTop+figureH*.04f, cx-waistW*.95f, hipY-figureH*.03f, cx-waistW, torsoBottom)
+            lineTo(cx+waistW, torsoBottom)
+            cubicTo(cx+waistW*.95f, hipY-figureH*.03f, cx+shoulderW*.78f, torsoTop+figureH*.04f, cx+shoulderW, torsoTop)
             close()
         }
+        paint.shader = LinearGradient(cx-shoulderW, torsoTop, cx+shoulderW, torsoBottom, lightShirt, darkShirt, Shader.TileMode.CLAMP)
         canvas.drawPath(torso, paint)
+        paint.shader = null
 
-        paint.color = Color.rgb(232,232,232)
-        canvas.drawRect(cx-shoulder*.76f, torsoBottom, cx+shoulder*.76f, torsoBottom+legLen*.12f, paint)
+        // Shorts
+        paint.color = shade(shirt, -45)
+        canvas.drawOval(cx-shoulderW*.72f, torsoBottom-figureH*.015f, cx, torsoBottom+figureH*.08f, paint)
+        canvas.drawOval(cx, torsoBottom-figureH*.015f, cx+shoulderW*.72f, torsoBottom+figureH*.08f, paint)
 
-        paint.color = skinColor()
-        canvas.drawCircle(cx, headY, headR, paint)
-        canvas.drawRect(cx-shoulder*.95f, torsoTop+5, cx-shoulder*.63f, torsoBottom, paint)
-        canvas.drawRect(cx+shoulder*.63f, torsoTop+5, cx+shoulder*.95f, torsoBottom, paint)
+        // Neck
+        paint.color = skin
+        canvas.drawRoundRect(cx-headR*.38f, neckY-headR*.05f, cx+headR*.38f, torsoTop+headR*.12f, 7f, 7f, paint)
 
-        paint.color = Color.rgb(48,35,29)
-        val hairTop = when(previewHair) {
-            "Светлая" -> Color.rgb(205,180,105)
-            "Каштановая" -> Color.rgb(105,67,40)
-            "Короткая" -> Color.rgb(45,35,30)
-            else -> Color.rgb(25,25,25)
+        // Arms with shoulders, elbows and hands
+        val armW = figureH * .045f * widthScale
+        fun drawArm(left: Boolean) {
+            val s = if (left) -1f else 1f
+            val shoulderX = cx + s*shoulderW*.83f
+            val elbowX = cx + s*shoulderW*1.10f
+            val handX = cx + s*shoulderW*1.13f
+            val elbowY = torsoTop + figureH*.19f
+            val handY = torsoTop + figureH*.37f
+            paint.color = shade(shirt, -18)
+            canvas.drawRoundRect(shoulderX-s*armW*.55f, torsoTop+figureH*.03f, elbowX+s*armW*.45f, elbowY, armW, armW, paint)
+            paint.color = skin
+            canvas.drawRoundRect(elbowX-s*armW*.45f, elbowY-armW*.15f, handX+s*armW*.45f, handY, armW, armW, paint)
+            canvas.drawCircle(handX, handY, armW*.62f, paint)
         }
-        paint.color = hairTop
-        canvas.drawArc(cx-headR, headY-headR, cx+headR, headY+headR, 180f, 180f, true, paint)
+        drawArm(true)
+        drawArm(false)
 
-        paint.color = shirt
-        canvas.drawRect(cx-legW*1.5f, torsoBottom+legLen*.08f, cx-legW*.1f, ground-18, paint)
-        canvas.drawRect(cx+legW*.1f, torsoBottom+legLen*.08f, cx+legW*1.5f, ground-18, paint)
+        // Head with subtle spherical shading
+        paint.shader = RadialGradient(cx-headR*.35f, headY-headR*.35f, headR*1.25f,
+            intArrayOf(shade(skin, 28), skin, shade(skin, -35)),
+            floatArrayOf(0f,.55f,1f), Shader.TileMode.CLAMP)
+        canvas.drawCircle(cx, headY, headR, paint)
+        paint.shader = null
 
-        paint.color = Color.rgb(30,30,35)
-        canvas.drawRoundRect(cx-legW*1.5f, ground-23, cx-legW*.05f, ground, 7f, 7f, paint)
-        canvas.drawRoundRect(cx+legW*.05f, ground-23, cx+legW*1.5f, ground, 7f, 7f, paint)
+        // Hair cap and simple side fade
+        paint.color = hairColor()
+        canvas.drawArc(cx-headR*1.02f, headY-headR*1.02f, cx+headR*1.02f, headY+headR*.75f, 180f, 180f, true, paint)
+        if (previewHair == "Короткая" || previewHair == "Тёмная") {
+            paint.color = shade(hairColor(), -18)
+            canvas.drawRoundRect(cx-headR*.88f, headY-headR*.55f, cx-headR*.58f, headY+headR*.1f, 5f, 5f, paint)
+            canvas.drawRoundRect(cx+headR*.58f, headY-headR*.55f, cx+headR*.88f, headY+headR*.1f, 5f, 5f, paint)
+        }
+
+        // Face details and jersey number
+        paint.color = Color.rgb(45, 35, 30)
+        canvas.drawCircle(cx-headR*.32f, headY-headR*.02f, 1.7f, paint)
+        canvas.drawCircle(cx+headR*.32f, headY-headR*.02f, 1.7f, paint)
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 2f
+        canvas.drawArc(cx-headR*.25f, headY+headR*.12f, cx+headR*.25f, headY+headR*.42f, 15f, 150f, false, paint)
+        paint.style = Paint.Style.FILL
 
         paint.color = Color.WHITE
         paint.textAlign = Paint.Align.CENTER
-        paint.textSize = (total*.12f).coerceIn(20f,34f)
         paint.typeface = Typeface.DEFAULT_BOLD
-        canvas.drawText("10", cx, torsoTop + (torsoBottom-torsoTop)*.62f, paint)
+        paint.textSize = (figureH*.095f).coerceIn(22f, 31f)
+        canvas.drawText(player.number.toString(), cx, torsoTop+figureH*.19f, paint)
 
+        paint.color = Color.argb(220,255,255,255)
         paint.textSize = 13f
-        paint.color = Color.LTGRAY
-        canvas.drawText("$previewHeight см  •  $previewWeight кг", cx, h-6f, paint)
+        canvas.drawText("$previewHeight см  •  $previewWeight кг", cx, h-13f, paint)
     }
 }
-
 class MainActivity : Activity() {
     private val p = Player()
     private lateinit var root: LinearLayout
@@ -158,8 +236,17 @@ class MainActivity : Activity() {
         setPadding(dp(4),dp(5),dp(4),dp(5))
     }
     private fun field(hint:String,value:String,input:Int=0)=EditText(this).apply{
-        this.hint=hint;setText(value);inputType=input;setTextColor(Color.WHITE);setHintTextColor(Color.LTGRAY)
-        setSingleLine(true);setPadding(dp(10),dp(7),dp(10),dp(7))
+        this.hint=hint
+        setText(value)
+        setSelection(text.length)
+        inputType=if(input==0) android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES else input
+        setTextColor(Color.WHITE)
+        setHintTextColor(Color.LTGRAY)
+        isFocusable=true
+        isFocusableInTouchMode=true
+        isEnabled=true
+        setSingleLine(true)
+        setPadding(dp(10),dp(7),dp(10),dp(7))
         background=GradientDrawable().apply{cornerRadius=dp(10).toFloat();setColor(Color.rgb(35,45,41))}
     }
     private fun button(t:String,a:()->Unit)=Button(this).apply{
