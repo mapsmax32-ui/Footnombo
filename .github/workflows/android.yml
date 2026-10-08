@@ -8,7 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Generate reference 3D player\n        run: |\n          python3 -m pip install trimesh\n          python3 tools/generate_player.py\n      - uses: actions/setup-java@v4
+      - name: Generate reference 3D player
+        run: |
+          python3 -m pip install trimesh
+          python3 tools/generate_player.py\n      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
