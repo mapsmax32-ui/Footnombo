@@ -6,6 +6,14 @@ import android.graphics.*
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import android.view.Choreographer
+import android.util.Log
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+import java.nio.ByteBuffer
+import com.google.android.filament.utils.ModelViewer
+import com.google.android.filament.utils.Utils
 import android.widget.*
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -39,165 +47,116 @@ data class Player(
     var reputation: Int = 20
 ) { val overall get() = ((attack + pass + speed + physical) / 4.0).roundToInt() }
 
-class PlayerPreviewView(context: Activity, private var player: Player) : ImageView(context) {
-    private var hCm = 180
-    private var wKg = 72
-    private var skinName = "Средняя"
-    private var hairName = "Тёмная"
-    private var positionName = "ЦАП"
-    private var rotation = 0f
-    private var downX = 0f
+class PlayerPreviewView(context: Activity, private var player: Player) : FrameLayout(context) {
+    companion object {
+        private const val MODEL_URL = "https://www.innerscene.com/api/library/soccer-player-standing-3d-person-team-sports-f55b1b4f/download"
+        private const val CACHE_NAME = "footnombo_soccer_player.glb"
+        private const val TAG = "Footnombo3D"
+        init { Utils.init() }
+    }
+
+    private val surface = SurfaceView(context)
+    private lateinit var modelViewer: ModelViewer
+    private val choreographer = Choreographer.getInstance()
+    private var framePosted = false
 
     init {
-        scaleType = ScaleType.CENTER_CROP
-        setBackgroundColor(Color.rgb(10, 32, 23))
-        isClickable = true
-        render()
+        setBackgroundColor(Color.rgb(8, 18, 14))
+        addView(surface, LayoutParams(-1, -1))
+        surface.setOnTouchListener { _, event ->
+            if (::modelViewer.isInitialized) modelViewer.onTouchEvent(event)
+            true
+        }
+        post { initViewer() }
     }
 
     fun update(height: Int, weight: Int, skin: String, hair: String, position: String) {
-        hCm = height
-        wKg = weight
-        skinName = skin
-        hairName = hair
-        positionName = position
-        render()
+        player.height = height
+        player.weight = weight
+        player.skin = skin
+        player.hair = hair
+        player.position = position
     }
 
-    override fun onTouchEvent(event: android.view.MotionEvent): Boolean {
-        when (event.actionMasked) {
-            android.view.MotionEvent.ACTION_DOWN -> {
-                downX = event.x
-                return true
+    private fun initViewer() {
+        if (::modelViewer.isInitialized) return
+        modelViewer = ModelViewer(surface)
+        modelViewer.view.renderQuality = modelViewer.view.renderQuality.apply {
+            hdrColorBuffer = com.google.android.filament.View.QualityLevel.MEDIUM
+        }
+        modelViewer.view.multiSampleAntiAliasingOptions =
+            modelViewer.view.multiSampleAntiAliasingOptions.apply { enabled = true }
+        modelViewer.view.antiAliasing = com.google.android.filament.View.AntiAliasing.FXAA
+        modelViewer.view.ambientOcclusionOptions =
+            modelViewer.view.ambientOcclusionOptions.apply { enabled = true }
+        val clear = modelViewer.renderer.clearOptions
+        clear.clear = true
+        clear.clearColor = floatArrayOf(0.025f, 0.07f, 0.045f, 1f)
+        modelViewer.renderer.clearOptions = clear
+        startFrames()
+        loadModel()
+    }
+
+    private fun startFrames() {
+        if (framePosted) return
+        framePosted = true
+        choreographer.postFrameCallback(frameCallback)
+    }
+
+    private val frameCallback = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            if (!isAttachedToWindow) {
+                framePosted = false
+                return
             }
-            android.view.MotionEvent.ACTION_MOVE -> {
-                rotation += (event.x - downX) * 0.7f
-                downX = event.x
-                render()
-                return true
+            if (::modelViewer.isInitialized) modelViewer.render(frameTimeNanos)
+            choreographer.postFrameCallback(this)
+        }
+    }
+
+    private fun loadModel() {
+        Thread {
+            try {
+                val file = File(context.cacheDir, CACHE_NAME)
+                if (!file.exists() || file.length() < 100_000L) {
+                    val connection = (URL(MODEL_URL).openConnection() as HttpURLConnection).apply {
+                        connectTimeout = 20_000
+                        readTimeout = 45_000
+                        requestMethod = "GET"
+                        instanceFollowRedirects = true
+                    }
+                    connection.connect()
+                    if (connection.responseCode !in 200..299) {
+                        throw IllegalStateException("HTTP " + connection.responseCode)
+                    }
+                    connection.inputStream.use { input ->
+                        file.outputStream().use { output -> input.copyTo(output, 64 * 1024) }
+                    }
+                    connection.disconnect()
+                }
+                val bytes = file.readBytes()
+                post {
+                    if (!::modelViewer.isInitialized || !isAttachedToWindow) return@post
+                    modelViewer.loadModelGlb(ByteBuffer.wrap(bytes))
+                    modelViewer.transformToUnitCube()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "3D player load failed", e)
+                post {
+                    Toast.makeText(context, "Не удалось загрузить 3D-модель футболиста", Toast.LENGTH_LONG).show()
+                }
             }
-        }
-        return true
+        }.start()
     }
 
-    private fun render() {
-        val density = resources.displayMetrics.density
-        val bw = (320f * density).roundToInt().coerceAtLeast(320)
-        val bh = (285f * density).roundToInt().coerceAtLeast(285)
-        val bmp = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
-        val c = Canvas(bmp)
-        val w = bw.toFloat()
-        val h = bh.toFloat()
-        val cx = w / 2f
-        val scale = density
-        val lean = kotlin.math.sin(Math.toRadians(rotation.toDouble())).toFloat()
-        val turn = kotlin.math.cos(Math.toRadians(rotation.toDouble())).toFloat()
-        val bodyW = (wKg / 72f).coerceIn(.82f, 1.22f)
-        val bodyH = (hCm / 180f).coerceIn(.86f, 1.14f)
-
-        val bg = Paint(Paint.ANTI_ALIAS_FLAG)
-        bg.shader = LinearGradient(0f, 0f, 0f, h, Color.rgb(24, 78, 52), Color.rgb(5, 22, 15), Shader.TileMode.CLAMP)
-        c.drawRect(0f, 0f, w, h, bg)
-
-        val glow = Paint(Paint.ANTI_ALIAS_FLAG)
-        glow.color = Color.argb(55, 100, 255, 170)
-        c.drawCircle(cx, h * .40f, w * .34f, glow)
-
-        val floor = Paint(Paint.ANTI_ALIAS_FLAG)
-        floor.color = Color.argb(120, 0, 0, 0)
-        c.drawOval(cx - 58f*scale, h*.88f, cx + 58f*scale, h*.94f, floor)
-
-        fun skinColor() = when (skinName) {
-            "Светлая" -> Color.rgb(242, 190, 153)
-            "Смуглая" -> Color.rgb(181, 112, 72)
-            "Тёмная" -> Color.rgb(105, 60, 39)
-            else -> Color.rgb(211, 151, 106)
+    override fun onDetachedFromWindow() {
+        choreographer.removeFrameCallback(frameCallback)
+        framePosted = false
+        if (::modelViewer.isInitialized) {
+            try { modelViewer.destroy() } catch (_: Exception) {}
         }
-        fun hairColor() = when (hairName) {
-            "Светлая" -> Color.rgb(220, 180, 82)
-            "Каштановая" -> Color.rgb(112, 60, 30)
-            "Короткая" -> Color.rgb(28, 25, 24)
-            else -> Color.rgb(12, 12, 12)
-        }
-        fun shirtColor() = when (positionName) {
-            "ЦФ" -> Color.rgb(220, 55, 50)
-            "ЦЗ" -> Color.rgb(55, 105, 225)
-            "ВР" -> Color.rgb(235, 185, 45)
-            else -> Color.rgb(35, 190, 98)
-        }
-
-        val skin = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = skinColor() }
-        val hair = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = hairColor() }
-        val shirt = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = shirtColor() }
-        val shorts = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = darken(shirt.color, .58f) }
-        val white = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
-        val boot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(18, 20, 24) }
-
-        c.save()
-        c.translate(cx + lean * 18f*scale, 0f)
-
-        val headY = h*.25f
-        val torsoTop = h*.37f
-        val torsoBottom = h*.59f
-        val hipY = h*.60f
-        val legBottom = h*.86f
-        val shoulder = 47f*bodyW*scale
-        val leg = 15f*bodyW*scale
-        val legHeight = (legBottom-hipY)*bodyH.coerceIn(.9f,1.1f)
-
-        rounded(c, -leg*1.15f, hipY, leg*2.3f, legHeight, 9f*scale, shorts)
-        rounded(c, 0f, hipY, leg*2.3f, legHeight, 9f*scale, shorts)
-        rounded(c, -leg*1.05f, h*.69f, leg*2.1f, h*.13f, 7f*scale, white)
-        rounded(c, 0f, h*.69f, leg*2.1f, h*.13f, 7f*scale, white)
-        rounded(c, -leg*1.2f, h*.80f, leg*2.55f, h*.08f, 7f*scale, boot)
-        rounded(c, -leg*.9f, h*.86f, leg*3.0f, 11f*scale, 5f*scale, boot)
-        rounded(c, -2f*scale, h*.80f, leg*2.55f, h*.08f, 7f*scale, boot)
-        rounded(c, 4f*scale, h*.86f, leg*3.0f, 11f*scale, 5f*scale, boot)
-
-        c.drawRoundRect(RectF(-shoulder, torsoTop, shoulder, torsoBottom), 18f*scale, 18f*scale, shirt)
-        rounded(c, -shoulder*.76f, hipY-5f*scale, shoulder*1.52f, 34f*scale, 10f*scale, shorts)
-
-        val armW = 18f*scale
-        rounded(c, -shoulder-15f*scale, torsoTop+8f*scale, armW, 82f*scale, 9f*scale, shirt)
-        c.drawCircle(-shoulder-6f*scale, torsoTop+94f*scale, 13f*scale, skin)
-        rounded(c, shoulder-3f*scale, torsoTop+8f*scale, armW, 82f*scale, 9f*scale, shirt)
-        c.drawCircle(shoulder+6f*scale, torsoTop+94f*scale, 13f*scale, skin)
-
-        rounded(c, -14f*scale, torsoTop-22f*scale, 28f*scale, 28f*scale, 8f*scale, skin)
-        c.drawOval(RectF(-31f*scale, headY-34f*scale, 31f*scale, headY+34f*scale), skin)
-        c.drawArc(RectF(-31f*scale, headY-37f*scale, 31f*scale, headY+26f*scale), 180f, 180f, true, hair)
-        c.drawOval(RectF(-29f*scale, headY-37f*scale, 29f*scale, headY-9f*scale), hair)
-
-        val eye = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(30, 24, 20) }
-        c.drawCircle(-10f*turn*scale, headY-2f*scale, 2.4f*scale, eye)
-        c.drawCircle(10f*turn*scale, headY-2f*scale, 2.4f*scale, eye)
-
-        val number = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            textAlign = Paint.Align.CENTER
-            textSize = 25f*scale
-            typeface = Typeface.DEFAULT_BOLD
-        }
-        c.drawText(player.number.toString(), 0f, torsoTop+75f*scale, number)
-
-        val title = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            textAlign = Paint.Align.CENTER
-            textSize = 13f*scale
-            typeface = Typeface.DEFAULT_BOLD
-        }
-        c.drawText("ПРЕДПРОСМОТР ИГРОКА", cx, h*.96f, title)
-        c.restore()
-
-        setImageBitmap(bmp)
+        super.onDetachedFromWindow()
     }
-
-    private fun rounded(c: Canvas, x: Float, y: Float, w: Float, h: Float, r: Float, p: Paint) {
-        c.drawRoundRect(RectF(x, y, x+w, y+h), r, r, p)
-    }
-
-    private fun darken(color: Int, factor: Float): Int =
-        Color.rgb((Color.red(color)*factor).toInt(), (Color.green(color)*factor).toInt(), (Color.blue(color)*factor).toInt())
 }
 
 class MainActivity : Activity() {
@@ -255,8 +214,8 @@ class MainActivity : Activity() {
         content.addView(tv("Настрой футболиста перед первым контрактом.",14f))
 
         val previewCard=card()
-        preview=PlayerPreviewView(this,p).apply{minimumHeight=dp(270)}
-        previewCard.addView(preview,LinearLayout.LayoutParams(-1,dp(285)))
+        preview=PlayerPreviewView(this,p).apply{minimumHeight=dp(320)}
+        previewCard.addView(preview,LinearLayout.LayoutParams(-1,dp(340)))
         content.addView(previewCard)
 
         val c=card()
