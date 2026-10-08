@@ -131,6 +131,8 @@ class PlayerPreviewView(context: Activity, private var player: Player) : android
         private var mvpHandle = 0
         private var normalHandle = 0
         private var lightHandle = 0
+        private var normalMatrixHandle = 0
+        private var positionHandle = 0
 
         private val vertexShader = """
             uniform mat4 uMvp;
@@ -167,6 +169,9 @@ class PlayerPreviewView(context: Activity, private var player: Player) : android
             normalHandle = android.opengl.GLES20.glGetAttribLocation(program, "aNormal")
             colorHandle = android.opengl.GLES20.glGetUniformLocation(program, "uColor")
             lightHandle = android.opengl.GLES20.glGetUniformLocation(program, "uLight")
+            normalMatrixHandle = android.opengl.GLES20.glGetUniformLocation(program, "uNormal")
+            positionHandle = android.opengl.GLES20.glGetAttribLocation(program, "aPosition")
+            android.opengl.GLES20.glDisable(android.opengl.GLES20.GL_CULL_FACE)
             android.opengl.GLES20.glEnable(android.opengl.GLES20.GL_DEPTH_TEST)
             android.opengl.GLES20.glClearColor(0.055f, 0.10f, 0.08f, 1f)
         }
@@ -253,13 +258,9 @@ class PlayerPreviewView(context: Activity, private var player: Player) : android
             val n3 = floatArrayOf(nm[0],nm[1],nm[2],nm[4],nm[5],nm[6],nm[8],nm[9],nm[10])
 
             android.opengl.GLES20.glUniformMatrix4fv(mvpHandle, 1, false, mvp, 0)
-            android.opengl.GLES20.glUniformMatrix3fv(
-                android.opengl.GLES20.glGetUniformLocation(program, "uNormal"), 1, false, n3, 0
-            )
+            android.opengl.GLES20.glUniformMatrix3fv(normalMatrixHandle, 1, false, n3, 0)
             android.opengl.GLES20.glUniform4fv(colorHandle, 1, color, 0)
-            mesh.draw(program,
-                android.opengl.GLES20.glGetAttribLocation(program, "aPosition"),
-                normalHandle)
+            mesh.draw(program, positionHandle, normalHandle)
         }
 
         private fun skinColor(): FloatArray = when (skin) {
