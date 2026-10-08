@@ -190,8 +190,8 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
                 EntityManager.get().destroy(hairEntity)
                 hairEntity = 0
             }
-            hairVertexBuffer?.let { it.destroy() }
-            hairIndexBuffer?.let { it.destroy() }
+            hairVertexBuffer?.let { modelViewer.engine.destroyVertexBuffer(it) }
+            hairIndexBuffer?.let { modelViewer.engine.destroyIndexBuffer(it) }
             hairVertexBuffer = null
             hairIndexBuffer = null
             ensureHairMaterial()
@@ -345,7 +345,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
                 }
                 hairVertexBuffer?.let { modelViewer.engine.destroy(it) }
                 hairIndexBuffer?.let { modelViewer.engine.destroy(it) }
-                hairMaterial?.let { it.destroy() }
+                hairMaterial?.let { modelViewer.engine.destroyMaterial(it) }
                 modelViewer.destroy()
             } catch (_: Exception) {}
         }
