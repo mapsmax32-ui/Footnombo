@@ -6,6 +6,11 @@ import android.graphics.*
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import android.opengl.GLSurfaceView
+import android.opengl.GLES20
+import android.opengl.Matrix
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import android.widget.*
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -34,187 +39,322 @@ data class Player(
     var week: Int = 1,
     var money: Int = 1200,
     var contractWeeks: Int = 24,
-    var club: String = "FC North City",
-    var injuryWeeks: Int = 0,
-    var reputation: Int = 20
-) { val overall get() = ((attack + pass + speed + physical) / 4.0).roundToInt() }
+    var club: String = "FC North Ciclass PlayerPreviewView(context: Activity, private var player: Player) : android.opengl.GLSurfaceView(context) {
+    private val renderer = Player3DRenderer()
+    private var touchX = 0f
 
-class PlayerPreviewView(context: Activity, private var player: Player) : View(context) {
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private var previewHeight = 180
-    private var previewWeight = 72
-    private var previewSkin = "Средняя"
-    private var previewHair = "Тёмная"
-    private var previewPosition = "ЦАП"
+    init {
+        setEGLContextClientVersion(2)
+        setRenderer(renderer)
+        renderMode = android.opengl.GLSurfaceView.RENDERMODE_CONTINUOUSLY
+        setBackgroundColor(Color.rgb(12, 25, 20))
+    }
 
     fun update(height: Int, weight: Int, skin: String, hair: String, position: String) {
-        previewHeight = height
-        previewWeight = weight
-        previewSkin = skin
-        previewHair = hair
-        previewPosition = position
-        invalidate()
+        queueEvent {
+            renderer.height = height
+            renderer.weight = weight
+            renderer.skin = skin
+            renderer.hair = hair
+            renderer.position = position
+        }
     }
 
-    private fun skinColor(): Int = when (previewSkin) {
-        "Светлая" -> Color.rgb(244, 204, 172)
-        "Смуглая" -> Color.rgb(180, 125, 82)
-        "Тёмная" -> Color.rgb(105, 68, 45)
-        else -> Color.rgb(211, 157, 111)
-    }
-
-    private fun shirtColor(): Int = when (previewPosition) {
-        "ЦФ" -> Color.rgb(205, 64, 58)
-        "ЦЗ" -> Color.rgb(55, 96, 180)
-        "ВР" -> Color.rgb(226, 174, 45)
-        else -> Color.rgb(28, 154, 88)
-    }
-
-    private fun hairColor(): Int = when (previewHair) {
-        "Светлая" -> Color.rgb(205, 178, 105)
-        "Каштановая" -> Color.rgb(105, 67, 40)
-        "Короткая" -> Color.rgb(48, 36, 31)
-        else -> Color.rgb(24, 24, 25)
-    }
-
-    private fun shade(base: Int, amount: Int): Int =
-        Color.rgb((Color.red(base) + amount).coerceIn(0,255),
-                  (Color.green(base) + amount).coerceIn(0,255),
-                  (Color.blue(base) + amount).coerceIn(0,255))
-
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        val w = width.toFloat()
-        val h = height.toFloat()
-        paint.style = Paint.Style.FILL
-
-        val bg = LinearGradient(0f, 0f, 0f, h, Color.rgb(22, 43, 35), Color.rgb(9, 22, 18), Shader.TileMode.CLAMP)
-        paint.shader = bg
-        canvas.drawRoundRect(0f, 0f, w, h, 28f, 28f, paint)
-        paint.shader = null
-
-        val heightScale = (previewHeight / 180f).coerceIn(.9f, 1.1f)
-        val widthScale = (previewWeight / 72f).coerceIn(.84f, 1.18f)
-        val cx = w / 2f
-        val ground = h - 42f
-        val figureH = (h * .76f * heightScale).coerceIn(h * .62f, h * .80f)
-        val headR = (figureH * .075f).coerceIn(18f, 25f)
-        val headY = ground - figureH + headR
-        val neckY = headY + headR * .82f
-        val shoulderW = figureH * .145f * widthScale
-        val waistW = shoulderW * .58f
-        val hipY = ground - figureH * .39f
-        val torsoBottom = ground - figureH * .36f
-        val torsoTop = neckY + headR * .45f
-        val upperLegLen = figureH * .25f
-        val lowerLegLen = figureH * .22f
-        val legGap = figureH * .035f
-        val skin = skinColor()
-        val shirt = shirtColor()
-        val darkShirt = shade(shirt, -32)
-        val lightShirt = shade(shirt, 28)
-
-        // Soft ground shadow
-        paint.color = Color.argb(100, 0, 0, 0)
-        canvas.drawOval(cx - figureH*.18f, ground-5f, cx + figureH*.18f, ground+11f, paint)
-
-        // Legs: tapered paths, not rectangles
-        fun legPath(left: Boolean): Path {
-            val s = if (left) -1f else 1f
-            val x = cx + s * legGap
-            return Path().apply {
-                moveTo(x - s*figureH*.045f, torsoBottom + figureH*.03f)
-                lineTo(x + s*figureH*.07f, torsoBottom + figureH*.03f)
-                lineTo(x + s*figureH*.065f, torsoBottom + upperLegLen)
-                lineTo(x + s*figureH*.05f, torsoBottom + upperLegLen + lowerLegLen)
-                lineTo(x - s*figureH*.055f, torsoBottom + upperLegLen + lowerLegLen)
-                lineTo(x - s*figureH*.075f, torsoBottom + upperLegLen)
-                close()
+    override fun onTouchEvent(event: android.view.MotionEvent): Boolean {
+        when (event.actionMasked) {
+            android.view.MotionEvent.ACTION_DOWN -> {
+                touchX = event.x
+                return true
+            }
+            android.view.MotionEvent.ACTION_MOVE -> {
+                val dx = event.x - touchX
+                touchX = event.x
+                queueEvent { renderer.rotation += dx * 0.65f }
+                return true
             }
         }
-        paint.color = shade(shirt, -12)
-        canvas.drawPath(legPath(true), paint)
-        canvas.drawPath(legPath(false), paint)
+        return true
+    }
 
-        // Socks and rounded boots
-        paint.color = Color.rgb(235, 235, 235)
-        canvas.drawRoundRect(cx-legGap-figureH*.065f, ground-figureH*.055f, cx-legGap+figureH*.035f, ground-figureH*.005f, 7f, 7f, paint)
-        canvas.drawRoundRect(cx+legGap-figureH*.035f, ground-figureH*.055f, cx+legGap+figureH*.065f, ground-figureH*.005f, 7f, 7f, paint)
-        paint.color = Color.rgb(27, 29, 34)
-        canvas.drawOval(cx-legGap-figureH*.09f, ground-figureH*.035f, cx-legGap+figureH*.07f, ground+2f, paint)
-        canvas.drawOval(cx+legGap-figureH*.07f, ground-figureH*.035f, cx+legGap+figureH*.09f, ground+2f, paint)
+    private class Mesh(
+        private val vertices: FloatArray,
+        private val normals: FloatArray,
+        private val indices: ShortArray
+    ) {
+        private val vb = java.nio.ByteBuffer.allocateDirect(vertices.size * 4)
+            .order(java.nio.ByteOrder.nativeOrder()).asFloatBuffer()
+        private val nb = java.nio.ByteBuffer.allocateDirect(normals.size * 4)
+            .order(java.nio.ByteOrder.nativeOrder()).asFloatBuffer()
+        private val ib = java.nio.ByteBuffer.allocateDirect(indices.size * 2)
+            .order(java.nio.ByteOrder.nativeOrder()).asShortBuffer()
 
-        // Torso with natural shoulders and waist
-        val torso = Path().apply {
-            moveTo(cx-shoulderW, torsoTop)
-            cubicTo(cx-shoulderW*.78f, torsoTop+figureH*.04f, cx-waistW*.95f, hipY-figureH*.03f, cx-waistW, torsoBottom)
-            lineTo(cx+waistW, torsoBottom)
-            cubicTo(cx+waistW*.95f, hipY-figureH*.03f, cx+shoulderW*.78f, torsoTop+figureH*.04f, cx+shoulderW, torsoTop)
-            close()
-        }
-        paint.shader = LinearGradient(cx-shoulderW, torsoTop, cx+shoulderW, torsoBottom, lightShirt, darkShirt, Shader.TileMode.CLAMP)
-        canvas.drawPath(torso, paint)
-        paint.shader = null
-
-        // Shorts
-        paint.color = shade(shirt, -45)
-        canvas.drawOval(cx-shoulderW*.72f, torsoBottom-figureH*.015f, cx, torsoBottom+figureH*.08f, paint)
-        canvas.drawOval(cx, torsoBottom-figureH*.015f, cx+shoulderW*.72f, torsoBottom+figureH*.08f, paint)
-
-        // Neck
-        paint.color = skin
-        canvas.drawRoundRect(cx-headR*.38f, neckY-headR*.05f, cx+headR*.38f, torsoTop+headR*.12f, 7f, 7f, paint)
-
-        // Arms with shoulders, elbows and hands
-        val armW = figureH * .045f * widthScale
-        fun drawArm(left: Boolean) {
-            val s = if (left) -1f else 1f
-            val shoulderX = cx + s*shoulderW*.83f
-            val elbowX = cx + s*shoulderW*1.10f
-            val handX = cx + s*shoulderW*1.13f
-            val elbowY = torsoTop + figureH*.19f
-            val handY = torsoTop + figureH*.37f
-            paint.color = shade(shirt, -18)
-            canvas.drawRoundRect(shoulderX-s*armW*.55f, torsoTop+figureH*.03f, elbowX+s*armW*.45f, elbowY, armW, armW, paint)
-            paint.color = skin
-            canvas.drawRoundRect(elbowX-s*armW*.45f, elbowY-armW*.15f, handX+s*armW*.45f, handY, armW, armW, paint)
-            canvas.drawCircle(handX, handY, armW*.62f, paint)
-        }
-        drawArm(true)
-        drawArm(false)
-
-        // Head with subtle spherical shading
-        paint.shader = RadialGradient(cx-headR*.35f, headY-headR*.35f, headR*1.25f,
-            intArrayOf(shade(skin, 28), skin, shade(skin, -35)),
-            floatArrayOf(0f,.55f,1f), Shader.TileMode.CLAMP)
-        canvas.drawCircle(cx, headY, headR, paint)
-        paint.shader = null
-
-        // Hair cap and simple side fade
-        paint.color = hairColor()
-        canvas.drawArc(cx-headR*1.02f, headY-headR*1.02f, cx+headR*1.02f, headY+headR*.75f, 180f, 180f, true, paint)
-        if (previewHair == "Короткая" || previewHair == "Тёмная") {
-            paint.color = shade(hairColor(), -18)
-            canvas.drawRoundRect(cx-headR*.88f, headY-headR*.55f, cx-headR*.58f, headY+headR*.1f, 5f, 5f, paint)
-            canvas.drawRoundRect(cx+headR*.58f, headY-headR*.55f, cx+headR*.88f, headY+headR*.1f, 5f, 5f, paint)
+        init {
+            vb.put(vertices).position(0)
+            nb.put(normals).position(0)
+            ib.put(indices).position(0)
         }
 
-        // Face details and jersey number
-        paint.color = Color.rgb(45, 35, 30)
-        canvas.drawCircle(cx-headR*.32f, headY-headR*.02f, 1.7f, paint)
-        canvas.drawCircle(cx+headR*.32f, headY-headR*.02f, 1.7f, paint)
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 2f
-        canvas.drawArc(cx-headR*.25f, headY+headR*.12f, cx+headR*.25f, headY+headR*.42f, 15f, 150f, false, paint)
-        paint.style = Paint.Style.FILL
+        fun draw(program: Int, posHandle: Int, normalHandle: Int) {
+            vb.position(0)
+            android.opengl.GLES20.glEnableVertexAttribArray(posHandle)
+            android.opengl.GLES20.glVertexAttribPointer(posHandle, 3, android.opengl.GLES20.GL_FLOAT, false, 0, vb)
+            nb.position(0)
+            android.opengl.GLES20.glEnableVertexAttribArray(normalHandle)
+            android.opengl.GLES20.glVertexAttribPointer(normalHandle, 3, android.opengl.GLES20.GL_FLOAT, false, 0, nb)
+            ib.position(0)
+            android.opengl.GLES20.glDrawElements(android.opengl.GLES20.GL_TRIANGLES, indices.size, android.opengl.GLES20.GL_UNSIGNED_SHORT, ib)
+            android.opengl.GLES20.glDisableVertexAttribArray(posHandle)
+            android.opengl.GLES20.glDisableVertexAttribArray(normalHandle)
+        }
+    }
 
-        paint.color = Color.WHITE
-        paint.textAlign = Paint.Align.CENTER
-        paint.typeface = Typeface.DEFAULT_BOLD
-        paint.textSize = (figureH*.095f).coerceIn(22f, 31f)
-        canvas.drawText(player.number.toString(), cx, torsoTop+figureH*.19f, paint)
+    private class Player3DRenderer : android.opengl.GLSurfaceView.Renderer {
+        var height = 180
+        var weight = 72
+        var skin = "Средняя"
+        var hair = "Тёмная"
+        var position = "ЦАП"
+        var rotation = 0f
 
-        paint.color = Color.argb(220,255,255,255)
+        private var program = 0
+        private lateinit var sphere: Mesh
+        private lateinit var cylinder: Mesh
+        private var width = 1
+        private var viewHeight = 1
+        private val projection = FloatArray(16)
+        private val view = FloatArray(16)
+        private val model = FloatArray(16)
+        private val vp = FloatArray(16)
+        private val mvp = FloatArray(16)
+        private val normalMatrix = FloatArray(9)
+        private var colorHandle = 0
+        private var mvpHandle = 0
+        private var normalHandle = 0
+        private var lightHandle = 0
+
+        private val vertexShader = """
+            uniform mat4 uMvp;
+            uniform mat3 uNormal;
+            attribute vec3 aPosition;
+            attribute vec3 aNormal;
+            varying vec3 vNormal;
+            varying vec3 vPosition;
+            void main() {
+                vNormal = normalize(uNormal * aNormal);
+                vPosition = aPosition;
+                gl_Position = uMvp * vec4(aPosition, 1.0);
+            }
+        """.trimIndent()
+
+        private val fragmentShader = """
+            precision mediump float;
+            uniform vec4 uColor;
+            uniform vec3 uLight;
+            varying vec3 vNormal;
+            void main() {
+                float diffuse = max(dot(normalize(vNormal), normalize(uLight)), 0.0);
+                float rim = pow(1.0 - max(dot(normalize(vNormal), vec3(0.0,0.0,1.0)), 0.0), 2.0);
+                float light = 0.30 + diffuse * 0.62 + rim * 0.08;
+                gl_FragColor = vec4(uColor.rgb * light, uColor.a);
+            }
+        """.trimIndent()
+
+        override fun onSurfaceCreated(gl: javax.microedition.khronos.opengles.GL10?, config: javax.microedition.khronos.egl.EGLConfig?) {
+            program = makeProgram(vertexShader, fragmentShader)
+            sphere = makeSphere(1f, 28, 18)
+            cylinder = makeCylinder(1f, 1f, 24)
+            mvpHandle = android.opengl.GLES20.glGetUniformLocation(program, "uMvp")
+            normalHandle = android.opengl.GLES20.glGetAttribLocation(program, "aNormal")
+            colorHandle = android.opengl.GLES20.glGetUniformLocation(program, "uColor")
+            lightHandle = android.opengl.GLES20.glGetUniformLocation(program, "uLight")
+            android.opengl.GLES20.glEnable(android.opengl.GLES20.GL_DEPTH_TEST)
+            android.opengl.GLES20.glClearColor(0.055f, 0.10f, 0.08f, 1f)
+        }
+
+        override fun onSurfaceChanged(gl: javax.microedition.khronos.opengles.GL10?, w: Int, h: Int) {
+            width = w
+            viewHeight = h
+            android.opengl.GLES20.glViewport(0, 0, w, h)
+            val ratio = w.toFloat() / h.coerceAtLeast(1)
+            android.opengl.Matrix.perspectiveM(projection, 0, 43f, ratio, 0.1f, 30f)
+        }
+
+        override fun onDrawFrame(gl: javax.microedition.khronos.opengles.GL10?) {
+            android.opengl.GLES20.glClear(android.opengl.GLES20.GL_COLOR_BUFFER_BIT or android.opengl.GLES20.GL_DEPTH_BUFFER_BIT)
+            android.opengl.GLES20.glUseProgram(program)
+            android.opengl.GLES20.glUniform3f(lightHandle, -0.45f, 0.85f, 1.0f)
+
+            android.opengl.Matrix.setLookAtM(view, 0, 0f, 1.25f, 7.4f, 0f, 1.25f, 0f, 0f, 1f, 0f)
+            android.opengl.Matrix.setIdentityM(model, 0)
+            android.opengl.Matrix.rotateM(model, 0, rotation, 0f, 1f, 0f)
+            android.opengl.Matrix.multiplyMM(vp, 0, view, 0, model, 0)
+
+            drawModel()
+        }
+
+        private fun drawModel() {
+            val hScale = (height / 180f).coerceIn(0.86f, 1.14f)
+            val wScale = (weight / 72f).coerceIn(0.82f, 1.22f)
+            val torsoW = 0.72f * wScale
+            val shoulderW = 0.88f * wScale
+            val legW = 0.23f * wScale
+            val skinColor = skinColor()
+            val shirt = shirtColor()
+            val shorts = floatArrayOf(shirt[0] * .52f, shirt[1] * .52f, shirt[2] * .52f, 1f)
+            val skin = floatArrayOf(skinColor[0], skinColor[1], skinColor[2], 1f)
+            val jersey = floatArrayOf(shirt[0], shirt[1], shirt[2], 1f)
+            val boot = floatArrayOf(.035f, .04f, .045f, 1f)
+            val sock = floatArrayOf(.88f, .89f, .88f, 1f)
+            val hairCol = hairColor()
+
+            part(sphere, 0f, 1.86f*hScale, 0f, .32f, .32f, .32f, hairCol)
+            part(sphere, 0f, 1.85f*hScale, 0f, .295f, .295f, .295f, skin)
+            part(cylinder, 0f, 1.48f*hScale, 0f, .18f, .22f, .18f, skin)
+            part(sphere, 0f, 1.20f*hScale, 0f, shoulderW*.88f, .62f, torsoW*.78f, jersey)
+            part(sphere, 0f, .66f*hScale, 0f, shoulderW*.72f, .30f, torsoW*.70f, shorts)
+
+            // Rounded shoulders, arms and hands
+            arm(-1f, shoulderW, hScale, jersey, skin)
+            arm(1f, shoulderW, hScale, jersey, skin)
+
+            // Natural hips and legs
+            leg(-1f, legW, hScale, shorts, sock, boot)
+            leg(1f, legW, hScale, shorts, sock, boot)
+        }
+
+        private fun arm(side: Float, shoulderW: Float, hs: Float, jersey: FloatArray, skin: FloatArray) {
+            part(sphere, side*shoulderW*.83f, 1.34f*hs, 0f, .20f, .20f, .20f, jersey)
+            part(cylinder, side*shoulderW*1.00f, 1.14f*hs, 0f, .17f, .43f, .17f, jersey, side*8f)
+            part(sphere, side*shoulderW*1.02f, .84f*hs, 0f, .17f, .17f, .17f, skin)
+            part(cylinder, side*shoulderW*1.04f, .66f*hs, 0f, .14f, .30f, .14f, skin, side*5f)
+            part(sphere, side*shoulderW*1.06f, .49f*hs, 0f, .15f, .18f, .15f, skin)
+        }
+
+        private fun leg(side: Float, legW: Float, hs: Float, shorts: FloatArray, sock: FloatArray, boot: FloatArray) {
+            part(sphere, side*legW*1.25f, .54f*hs, 0f, .27f, .27f, .27f, shorts)
+            part(cylinder, side*legW*1.25f, .24f*hs, 0f, legW, .52f, legW, shorts)
+            part(sphere, side*legW*1.25f, -.05f*hs, 0f, legW*1.03f, legW*1.03f, legW*1.03f, sock)
+            part(cylinder, side*legW*1.25f, -.34f*hs, 0f, legW*.88f, .48f, legW*.88f, sock)
+            part(sphere, side*legW*1.25f, -.59f*hs, .09f, .18f, .11f, .30f, boot)
+        }
+
+        private fun part(mesh: Mesh, x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, color: FloatArray, rotationZ: Float = 0f) {
+            android.opengl.Matrix.setIdentityM(model, 0)
+            android.opengl.Matrix.rotateM(model, 0, rotation, 0f, 1f, 0f)
+            android.opengl.Matrix.translateM(model, 0, x, y, z)
+            if (rotationZ != 0f) android.opengl.Matrix.rotateM(model, 0, rotationZ, 0f, 0f, 1f)
+            android.opengl.Matrix.scaleM(model, 0, sx, sy, sz)
+            android.opengl.Matrix.multiplyMM(mvp, 0, view, 0, model, 0)
+            android.opengl.Matrix.multiplyMM(mvp, 0, projection, 0, mvp, 0)
+
+            val nm = FloatArray(16)
+            android.opengl.Matrix.invertM(nm, 0, model, 0)
+            android.opengl.Matrix.transposeM(nm, 0, nm, 0)
+            val n3 = floatArrayOf(nm[0],nm[1],nm[2],nm[4],nm[5],nm[6],nm[8],nm[9],nm[10])
+
+            android.opengl.GLES20.glUniformMatrix4fv(mvpHandle, 1, false, mvp, 0)
+            android.opengl.GLES20.glUniformMatrix3fv(
+                android.opengl.GLES20.glGetUniformLocation(program, "uNormal"), 1, false, n3, 0
+            )
+            android.opengl.GLES20.glUniform4fv(colorHandle, 1, color, 0)
+            mesh.draw(program,
+                android.opengl.GLES20.glGetAttribLocation(program, "aPosition"),
+                normalHandle)
+        }
+
+        private fun skinColor(): FloatArray = when (skin) {
+            "Светлая" -> floatArrayOf(0.90f, .69f, .54f)
+            "Смуглая" -> floatArrayOf(.67f, .42f, .26f)
+            "Тёмная" -> floatArrayOf(.38f, .22f, .14f)
+            else -> floatArrayOf(.78f, .55f, .38f)
+        }
+
+        private fun hairColor(): FloatArray = when (hair) {
+            "Светлая" -> floatArrayOf(.72f, .58f, .31f, 1f)
+            "Каштановая" -> floatArrayOf(.34f, .18f, .09f, 1f)
+            "Короткая" -> floatArrayOf(.08f, .055f, .045f, 1f)
+            else -> floatArrayOf(.025f, .025f, .025f, 1f)
+        }
+
+        private fun shirtColor(): FloatArray = when (position) {
+            "ЦФ" -> floatArrayOf(.80f, .10f, .08f)
+            "ЦЗ" -> floatArrayOf(.08f, .28f, .72f)
+            "ВР" -> floatArrayOf(.82f, .58f, .08f)
+            else -> floatArrayOf(.05f, .62f, .30f)
+        }
+
+        private fun makeSphere(radius: Float, slices: Int, stacks: Int): Mesh {
+            val v = ArrayList<Float>()
+            val n = ArrayList<Float>()
+            val ind = ArrayList<Short>()
+            for (j in 0..stacks) {
+                val phi = Math.PI * j / stacks
+                val sp = kotlin.math.sin(phi).toFloat()
+                val cp = kotlin.math.cos(phi).toFloat()
+                for (i in 0..slices) {
+                    val th = 2.0 * Math.PI * i / slices
+                    val st = kotlin.math.sin(th).toFloat()
+                    val ct = kotlin.math.cos(th).toFloat()
+                    v += radius * sp * ct
+                    v += radius * cp
+                    v += radius * sp * st
+                    n += sp * ct
+                    n += cp
+                    n += sp * st
+                }
+            }
+            for (j in 0 until stacks) for (i in 0 until slices) {
+                val a = (j*(slices+1)+i).toShort()
+                val b = (a.toInt()+slices+1).toShort()
+                ind += a; ind += b; ind += (a.toInt()+1).toShort()
+                ind += (a.toInt()+1).toShort(); ind += b; ind += (b.toInt()+1).toShort()
+            }
+            return Mesh(v.toFloatArray(), n.toFloatArray(), ind.toShortArray())
+        }
+
+        private fun makeCylinder(radiusTop: Float, radiusBottom: Float, slices: Int): Mesh {
+            val v = ArrayList<Float>()
+            val n = ArrayList<Float>()
+            val ind = ArrayList<Short>()
+            val height = 2f
+            for (y in 0..1) {
+                val yy = if (y == 0) -1f else 1f
+                val r = if (y == 0) radiusBottom else radiusTop
+                for (i in 0..slices) {
+                    val th = 2f * Math.PI.toFloat() * i / slices
+                    val c = kotlin.math.cos(th)
+                    val s = kotlin.math.sin(th)
+                    v += r*c; v += yy; v += r*s
+                    n += c; n += 0f; n += s
+                }
+            }
+            for (i in 0 until slices) {
+                val a = i.toShort()
+                val b = (i+slices+1).toShort()
+                ind += a; ind += (a.toInt()+1).toShort(); ind += b
+                ind += (a.toInt()+1).toShort(); ind += (b.toInt()+1).toShort(); ind += b
+            }
+            return Mesh(v.toFloatArray(), n.toFloatArray(), ind.toShortArray())
+        }
+
+        private fun makeProgram(vs: String, fs: String): Int {
+            fun compile(type: Int, source: String): Int {
+                val shader = android.opengl.GLES20.glCreateShader(type)
+                android.opengl.GLES20.glShaderSource(shader, source)
+                android.opengl.GLES20.glCompileShader(shader)
+                return shader
+            }
+            val v = compile(android.opengl.GLES20.GL_VERTEX_SHADER, vs)
+            val f = compile(android.opengl.GLES20.GL_FRAGMENT_SHADER, fs)
+            return android.opengl.GLES20.glCreateProgram().also {
+                android.opengl.GLES20.glAttachShader(it, v)
+                android.opengl.GLES20.glAttachShader(it, f)
+                android.opengl.GLES20.glLinkProgram(it)
+            }
+        }
+    }
+}
+lor.argb(220,255,255,255)
         paint.textSize = 13f
         canvas.drawText("$previewHeight см  •  $previewWeight кг", cx, h-13f, paint)
     }
