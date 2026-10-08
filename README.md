@@ -6,5 +6,6 @@ Android-игра о карьере футболиста.
 
 GitHub Actions автоматически собирает debug APK.
 
-
 Build verification for OpenGL 3D player.
+
+Latest character customization build.
