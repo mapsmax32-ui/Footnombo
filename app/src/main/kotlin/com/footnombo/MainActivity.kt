@@ -190,8 +190,8 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
                 EntityManager.get().destroy(hairEntity)
                 hairEntity = 0
             }
-            hairVertexBuffer?.let { modelViewer.engine.destroy(it) }
-            hairIndexBuffer?.let { modelViewer.engine.destroy(it) }
+            hairVertexBuffer?.let { it.destroy() }
+            hairIndexBuffer?.let { it.destroy() }
             hairVertexBuffer = null
             hairIndexBuffer = null
             ensureHairMaterial()
@@ -290,7 +290,8 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
                 .build(modelViewer.engine, hairEntity)
             modelViewer.scene.addEntity(hairEntity)
             val tm = modelViewer.engine.transformManager
-            tm.create(hairEntity, tm.getInstance(modelViewer.asset!!.root))
+            tm.create(hairEntity)
+            tm.setParent(tm.getInstance(hairEntity), tm.getInstance(modelViewer.asset!!.root))
         } catch (e: Exception) {
             Log.e(TAG, "3D hair build failed", e)
         }
@@ -344,7 +345,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
                 }
                 hairVertexBuffer?.let { modelViewer.engine.destroy(it) }
                 hairIndexBuffer?.let { modelViewer.engine.destroy(it) }
-                hairMaterial?.let { modelViewer.engine.destroy(it) }
+                hairMaterial?.let { it.destroy() }
                 modelViewer.destroy()
             } catch (_: Exception) {}
         }
