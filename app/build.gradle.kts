@@ -20,8 +20,8 @@ android {
         jvmTarget = "17"
     }
     dependencies {
-        implementation("com.google.android.filament:filament-android:1.77.2")
-        implementation("com.google.android.filament:gltfio-android:1.77.2")
-        implementation("com.google.android.filament:filament-utils-android:1.77.2")
+        implementation("com.google.android.filament:filament-android:1.72.0")
+        implementation("com.google.android.filament:gltfio-android:1.72.0")
+        implementation("com.google.android.filament:filament-utils-android:1.72.0")
     }
 }
