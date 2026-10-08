@@ -15,6 +15,8 @@ import java.net.URL
 import java.nio.ByteBuffer
 import com.google.android.filament.utils.ModelViewer
 import com.google.android.filament.utils.Utils
+import com.google.android.filament.EntityManager
+import com.google.android.filament.LightManager
 import android.widget.*
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -92,8 +94,23 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
             modelViewer.view.ambientOcclusionOptions.apply { enabled = true }
         val clear = modelViewer.renderer.clearOptions
         clear.clear = true
-        clear.clearColor = doubleArrayOf(0.025, 0.07, 0.045, 1.0)
+        clear.clearColor = doubleArrayOf(0.10, 0.16, 0.13, 1.0)
         modelViewer.renderer.clearOptions = clear
+        val light = EntityManager.get().create()
+        LightManager.Builder(LightManager.Type.DIRECTIONAL)
+            .color(1.0f, 0.95f, 0.90f)
+            .intensity(85000.0f)
+            .direction(0.35f, -1.0f, -0.55f)
+            .castShadows(true)
+            .build(modelViewer.engine, light)
+        modelViewer.scene.addEntity(light)
+        val fill = EntityManager.get().create()
+        LightManager.Builder(LightManager.Type.DIRECTIONAL)
+            .color(0.72f, 0.82f, 1.0f)
+            .intensity(35000.0f)
+            .direction(-0.55f, -0.35f, 0.65f)
+            .build(modelViewer.engine, fill)
+        modelViewer.scene.addEntity(fill)
         startFrames()
         loadModel()
     }
