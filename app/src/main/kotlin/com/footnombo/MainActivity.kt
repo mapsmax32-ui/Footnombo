@@ -56,6 +56,7 @@ data class Player(
     var money: Int = 1200,
     var contractWeeks: Int = 24,
     var club: String = "FC North City",
+    var academy: String = "FC North City",
     var injuryWeeks: Int = 0,
     var reputation: Int = 20
 ) { val overall get() = ((attack + pass + speed + physical) / 4.0).roundToInt() }
@@ -658,7 +659,7 @@ class MainActivity : Activity() {
             p.height = (height.text.toString().toIntOrNull() ?: 180).coerceIn(150, 210)
             p.weight = (weight.text.toString().toIntOrNull() ?: 72).coerceIn(45, 120)
             p.skin = skin.selectedItem.toString()
-            showCareer()
+            showAcademySelection()
         })
         showPanel(0)
     }
@@ -670,9 +671,46 @@ class MainActivity : Activity() {
         bar.addView(button("⚽ Матч"){showMatch()},LinearLayout.LayoutParams(0,dp(50),1f))
         root.addView(bar)
     }
+    private fun academyOptions(country: String): List<String> = when (country) {
+        "Россия" -> listOf("ЦСКА Москва", "Спартак Москва", "Зенит", "Динамо Москва", "Локомотив Москва", "Краснодар")
+        "Нидерланды" -> listOf("Аякс", "ПСВ", "Фейеноорд", "АЗ Алкмар", "Утрехт", "Витесс")
+        "Германия" -> listOf("Бавария", "Боруссия Дортмунд", "Шальке 04", "Байер 04", "РБ Лейпциг", "Штутгарт")
+        "Бразилия" -> listOf("Фламенго", "Палмейрас", "Сантос", "Сан-Паулу", "Гремио", "Флуминенсе")
+        "Аргентина" -> listOf("Ривер Плейт", "Бока Хуниорс", "Расинг", "Индепендьенте", "Сан-Лоренсо", "Ньюэллс Олд Бойз")
+        "Франция" -> listOf("Пари Сен-Жермен", "Олимпик Лион", "Олимпик Марсель", "Монако", "Лилль", "Ренн")
+        "Испания" -> listOf("Барселона", "Реал Мадрид", "Атлетик Бильбао", "Атлетико Мадрид", "Валенсия", "Севилья")
+        "Англия" -> listOf("Арсенал", "Челси", "Манчестер Сити", "Ливерпуль", "Манчестер Юнайтед", "Тоттенхэм")
+        else -> listOf("Аякс", "Бавария", "Барселона", "Арсенал", "ПСЖ", "Ривер Плейт")
+    }
+
+    private fun showAcademySelection() {
+        base("Молодёжная академия")
+        val choices = academyOptions(p.country).shuffled().distinct().take(3)
+
+        content.addView(tv("Добро пожаловать в молодёжную карьеру", 24f, true))
+        content.addView(tv("Ты выбрал страну: " + p.country + ". Скаутская система предлагает три реальные академии. Выбери клуб, с которого начнётся твоя карьера.", 15f))
+
+        choices.forEachIndexed { index, academy ->
+            val c = card()
+            c.addView(tv((index + 1).toString() + ". " + academy, 21f, true))
+            c.addView(tv("Молодёжная академия • " + p.country))
+            c.addView(tv("Стартовый контракт • U19/U21"))
+            c.addView(button("Выбрать академию") {
+                p.club = academy
+                p.academy = academy
+                showCareer()
+                Toast.makeText(this, "Карьера началась в академии " + academy, Toast.LENGTH_LONG).show()
+            })
+            content.addView(c)
+        }
+
+        content.addView(tv("Каждый новый старт генерирует новую тройку клубов.", 13f))
+        content.addView(button("🎲 Перегенерировать три академии") { showAcademySelection() })
+    }
+
     private fun showCareer(){
         base("Моя карьера")
-        val c=card();c.addView(tv(p.name,22f,true));c.addView(tv(p.position+" • №"+p.number+" • "+p.age+" лет",14f));c.addView(tv(p.country+" • FC North City"));c.addView(tv("Общий рейтинг: "+p.overall,20f,true));content.addView(c)
+        val c=card();c.addView(tv(p.name,22f,true));c.addView(tv(p.position+" • №"+p.number+" • "+p.age+" лет",14f));c.addView(tv(p.country+" • Молодёжная академия: "+p.academy));c.addView(tv("Общий рейтинг: "+p.overall,20f,true));content.addView(c)
         val s=card();s.addView(tv("Сезон "+p.season+" • Неделя "+p.week,18f,true));s.addView(tv("Матчи: "+p.matches+"   Голы: "+p.goals+"   Голевые: "+p.assists));s.addView(tv("Доверие: "+p.trust+"%   Мораль: "+p.morale+"%   Репутация: "+p.reputation));s.addView(tv("Баланс: €"+p.money+"   Контракт: "+p.contractWeeks+" нед."));content.addView(s)
         if(!eventShown) content.addView(button("📖 Событие недели"){showEvent()})
         val e=card();e.addView(tv("Следующий матч",17f,true));e.addView(tv(p.club+" — Red Falcons"));content.addView(e)
@@ -705,7 +743,7 @@ class MainActivity : Activity() {
         };nav()
     }
     private fun showMatch(){
-        base("Матч");val c=card();c.addView(tv("FC North City — Red Falcons",20f,true));c.addView(tv("Домашний матч • Лига"))
+        base("Матч");val c=card();c.addView(tv(p.club+" — Red Falcons",20f,true));c.addView(tv("Домашний матч • Лига"))
         if(!played){c.addView(tv("Как будешь играть?",17f,true));c.addView(button("🎨 Рисковать"){play("creative")});c.addView(button("⚖ Сбалансированно"){play("balanced")});c.addView(button("🤝 На команду"){play("team")})}
         else c.addView(tv("Матч уже сыгран. Открой профиль для статистики."))
         content.addView(c);nav()
