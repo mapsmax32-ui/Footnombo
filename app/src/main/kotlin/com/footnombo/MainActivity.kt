@@ -198,70 +198,181 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
 
             val positions = ArrayList<Float>()
             val indices = ArrayList<Int>()
-            fun addSphere(cx: Float, cy: Float, cz: Float, rx: Float, ry: Float, rz: Float, rings: Int = 6, segs: Int = 18) {
+
+            fun addEllipsoid(cx: Float, cy: Float, cz: Float,
+                             rx: Float, ry: Float, rz: Float,
+                             rings: Int = 8, segs: Int = 24,
+                             topOnly: Boolean = false) {
                 val base = positions.size / 3
+                val startPhi = if (topOnly) 0f else -PI.toFloat() / 2f
+                val endPhi = PI.toFloat() / 2f
                 for (r in 0..rings) {
-                    val v = r.toFloat() / rings
-                    val phi = v * (PI.toFloat() / 2f)
-                    val y = cy + cos(phi) * ry
-                    val rr = sin(phi)
-                    for (s in 0 until segs) {
-                        val a = s.toFloat() / segs * (2f * PI.toFloat())
-                        positions += cx + cos(a) * rx * rr
-                        positions += y
-                        positions += cz + sin(a) * rz * rr
+                    val phi = startPhi + (endPhi - startPhi) * r / rings
+                    val cp = cos(phi)
+                    val sp = sin(phi)
+                    for (seg in 0 until segs) {
+                        val a = seg.toFloat() / segs * 2f * PI.toFloat()
+                        positions += cx + cos(a) * rx * cp
+                        positions += cy + sp * ry
+                        positions += cz + sin(a) * rz * cp
                     }
                 }
-                for (r in 0 until rings) for (s in 0 until segs) {
-                    val n = (s + 1) % segs
-                    val a = base + r * segs + s
+                for (r in 0 until rings) for (seg in 0 until segs) {
+                    val n = (seg + 1) % segs
+                    val a = base + r * segs + seg
                     val b = base + r * segs + n
-                    val d = base + (r + 1) * segs + s
-                    val e = base + (r + 1) * segs + n
-                    indices += a; indices += d; indices += b
-                    indices += b; indices += d; indices += e
+                    val c = base + (r + 1) * segs + seg
+                    val d = base + (r + 1) * segs + n
+                    indices += a; indices += c; indices += b
+                    indices += b; indices += c; indices += d
                 }
             }
-            fun addCylinder(cx: Float, cy: Float, cz: Float, radius: Float, height: Float, segs: Int = 10) {
+
+            fun addHairClump(cx: Float, cy: Float, cz: Float,
+                             rx: Float, ry: Float, rz: Float,
+                             tilt: Float = 0f) {
                 val base = positions.size / 3
-                for (y in 0..1) for (s in 0 until segs) {
-                    val a = s.toFloat() / segs * (2f * PI.toFloat())
-                    positions += cx + cos(a) * radius
-                    positions += cy + y * height
-                    positions += cz + sin(a) * radius
+                val rings = 5
+                val segs = 12
+                for (r in 0..rings) {
+                    val t = r.toFloat() / rings
+                    val y = cy - t * ry
+                    val scale = 1f - 0.28f * t
+                    val z = cz + tilt * t
+                    for (seg in 0 until segs) {
+                        val a = seg.toFloat() / segs * 2f * PI.toFloat()
+                        positions += cx + cos(a) * rx * scale
+                        positions += y
+                        positions += z + sin(a) * rz * scale
+                    }
                 }
-                for (s in 0 until segs) {
-                    val n = (s + 1) % segs
-                    indices += base+s; indices += base+segs+s; indices += base+n
-                    indices += base+n; indices += base+segs+s; indices += base+segs+n
+                for (r in 0 until rings) for (seg in 0 until segs) {
+                    val n = (seg + 1) % segs
+                    val a = base + r * segs + seg
+                    val b = base + r * segs + n
+                    val c = base + (r + 1) * segs + seg
+                    val d = base + (r + 1) * segs + n
+                    indices += a; indices += c; indices += b
+                    indices += b; indices += c; indices += d
                 }
             }
 
-            val shape = when (style) {
-                "Фейд" -> floatArrayOf(1.57f, 1.72f, 0.135f, 0.15f)
-                "Высокий фейд" -> floatArrayOf(1.60f, 1.73f, 0.125f, 0.145f)
-                "Андеркат" -> floatArrayOf(1.56f, 1.78f, 0.15f, 0.16f)
-                "Короткий ёжик" -> floatArrayOf(1.59f, 1.76f, 0.14f, 0.15f)
-                "Текстурный кроп" -> floatArrayOf(1.56f, 1.77f, 0.145f, 0.16f)
-                "Кудри" -> floatArrayOf(1.54f, 1.82f, 0.17f, 0.18f)
-                "Объёмные кудри" -> floatArrayOf(1.52f, 1.88f, 0.19f, 0.20f)
-                "Ирокез" -> floatArrayOf(1.58f, 1.88f, 0.065f, 0.17f)
-                "Длинные назад" -> floatArrayOf(1.53f, 1.79f, 0.17f, 0.21f)
-                "Дреды" -> floatArrayOf(1.54f, 1.80f, 0.17f, 0.18f)
-                "Косички" -> floatArrayOf(1.54f, 1.77f, 0.16f, 0.18f)
-                else -> floatArrayOf(1.57f, 1.75f, 0.145f, 0.155f)
-            }
-            addSphere(0f, shape[0], 0f, shape[2], shape[1]-shape[0], shape[3])
+            // The player GLB is normalized by ModelViewer to a ~2m tall reference.
+            // Keep every hairstyle around the same head anchor so it follows the male model.
+            val headY = 1.48f
+            val headZ = -0.01f
+
             when (style) {
-                "Ирокез" -> for (i in -2..2) addCylinder(i*0.035f, 1.73f, 0f, 0.025f, 0.16f, 8)
-                "Кудри", "Объёмные кудри" -> for (i in -2..2) for (j in -1..1) addSphere(i*0.06f, shape[1]-0.015f, j*0.055f, 0.055f, 0.055f, 0.055f, 4, 10)
-                "Дреды", "Косички" -> for (i in -3..3) addCylinder(i*0.045f, 1.56f, 0f, 0.018f, 0.22f, 8)
-                "Длинные назад" -> for (i in -2..2) addCylinder(i*0.055f, 1.57f, 0.08f, 0.018f, 0.24f, 8)
+                "Короткая классика" -> {
+                    addEllipsoid(0f, headY, headZ, 0.145f, 0.16f, 0.155f, topOnly = true)
+                    addHairClump(-0.12f, 1.50f, -0.055f, 0.055f, 0.13f, 0.075f, -0.015f)
+                    addHairClump(0.12f, 1.50f, -0.055f, 0.055f, 0.13f, 0.075f, -0.015f)
+                }
+                "Фейд" -> {
+                    addEllipsoid(0f, 1.49f, headZ, 0.135f, 0.145f, 0.145f, topOnly = true)
+                    addEllipsoid(0f, 1.43f, 0f, 0.142f, 0.055f, 0.145f, topOnly = true)
+                    addHairClump(0f, 1.56f, -0.11f, 0.09f, 0.09f, 0.05f, -0.03f)
+                }
+                "Высокий фейд" -> {
+                    addEllipsoid(0f, 1.50f, headZ, 0.13f, 0.14f, 0.14f, topOnly = true)
+                    addEllipsoid(0f, 1.40f, 0f, 0.137f, 0.035f, 0.14f, topOnly = true)
+                    addHairClump(0f, 1.56f, -0.105f, 0.085f, 0.075f, 0.045f, -0.035f)
+                }
+                "Андеркат" -> {
+                    addEllipsoid(0f, 1.50f, headZ, 0.155f, 0.17f, 0.16f, topOnly = true)
+                    addEllipsoid(0f, 1.42f, 0.005f, 0.155f, 0.045f, 0.16f, topOnly = true)
+                    for (i in -2..2) addHairClump(i * 0.045f, 1.57f, -0.095f, 0.042f, 0.095f, 0.055f, -0.025f)
+                }
+                "Короткий ёжик" -> {
+                    addEllipsoid(0f, 1.50f, headZ, 0.145f, 0.16f, 0.15f, topOnly = true)
+                    for (i in -3..3) {
+                        val x = i * 0.038f
+                        addHairClump(x, 1.60f, -0.015f, 0.032f, 0.09f, 0.032f, 0f)
+                    }
+                }
+                "Текстурный кроп" -> {
+                    addEllipsoid(0f, 1.49f, headZ, 0.15f, 0.16f, 0.15f, topOnly = true)
+                    for (i in -3..3) {
+                        val x = i * 0.035f
+                        addHairClump(x, 1.57f, -0.105f, 0.035f, 0.10f, 0.05f, -0.055f)
+                    }
+                }
+                "Кудри" -> {
+                    addEllipsoid(0f, 1.49f, headZ, 0.17f, 0.18f, 0.17f, topOnly = true)
+                    for (x in -2..2) for (z in -1..1) {
+                        addEllipsoid(x * 0.055f, 1.58f + (1 - kotlin.math.abs(x)) * 0.01f,
+                            z * 0.055f - 0.01f, 0.052f, 0.052f, 0.052f, 5, 12, true)
+                    }
+                }
+                "Объёмные кудри" -> {
+                    addEllipsoid(0f, 1.50f, headZ, 0.19f, 0.20f, 0.19f, topOnly = true)
+                    for (x in -3..3) for (z in -2..2) {
+                        if ((x*x + z*z) <= 10) {
+                            addEllipsoid(x * 0.055f, 1.61f, z * 0.055f - 0.01f,
+                                0.055f, 0.055f, 0.055f, 5, 12, true)
+                        }
+                    }
+                }
+                "Ирокез" -> {
+                    for (i in -2..2) {
+                        addHairClump(i * 0.035f, 1.57f, 0f, 0.032f, 0.19f, 0.055f, -0.02f)
+                    }
+                    addEllipsoid(0f, 1.47f, 0f, 0.13f, 0.07f, 0.14f, topOnly = true)
+                }
+                "Длинные назад" -> {
+                    addEllipsoid(0f, 1.50f, 0.015f, 0.17f, 0.18f, 0.18f, topOnly = true)
+                    for (x in -2..2) {
+                        addHairClump(x * 0.055f, 1.48f, 0.095f, 0.035f, 0.24f, 0.065f, 0.10f)
+                    }
+                }
+                "Дреды" -> {
+                    addEllipsoid(0f, 1.49f, 0f, 0.16f, 0.17f, 0.16f, topOnly = true)
+                    for (x in -3..3) {
+                        addHairClump(x * 0.042f, 1.54f, 0.025f, 0.022f, 0.27f, 0.025f, 0.02f)
+                    }
+                }
+                "Косички" -> {
+                    addEllipsoid(0f, 1.49f, 0f, 0.16f, 0.17f, 0.16f, topOnly = true)
+                    for (x in -3..3) {
+                        addHairClump(x * 0.045f, 1.53f, 0.0f, 0.019f, 0.29f, 0.022f, 0.015f)
+                    }
+                }
+                else -> addEllipsoid(0f, headY, headZ, 0.145f, 0.16f, 0.155f, topOnly = true)
             }
 
-            val vbData = ByteBuffer.allocateDirect(positions.size * 4).order(ByteOrder.nativeOrder())
-            positions.forEach { vbData.putFloat(it) }
+            // Build smooth vertex normals so the hair is lit like real 3D geometry.
+            val normals = FloatArray(positions.size)
+            for (i in indices.indices step 3) {
+                val ia = indices[i] * 3
+                val ib = indices[i + 1] * 3
+                val ic = indices[i + 2] * 3
+                val ax = positions[ib] - positions[ia]
+                val ay = positions[ib + 1] - positions[ia + 1]
+                val az = positions[ib + 2] - positions[ia + 2]
+                val bx = positions[ic] - positions[ia]
+                val by = positions[ic + 1] - positions[ia + 1]
+                val bz = positions[ic + 2] - positions[ia + 2]
+                val nx = ay * bz - az * by
+                val ny = az * bx - ax * bz
+                val nz = ax * by - ay * bx
+                for (v in intArrayOf(ia, ib, ic)) {
+                    normals[v] += nx
+                    normals[v + 1] += ny
+                    normals[v + 2] += nz
+                }
+            }
+            for (i in normals.indices step 3) {
+                val len = kotlin.math.sqrt(normals[i] * normals[i] + normals[i+1] * normals[i+1] + normals[i+2] * normals[i+2]).coerceAtLeast(0.0001f)
+                normals[i] /= len; normals[i+1] /= len; normals[i+2] /= len
+            }
+
+            val vbData = ByteBuffer.allocateDirect(positions.size * 4 + normals.size * 4).order(ByteOrder.nativeOrder())
+            for (i in positions.indices step 3) {
+                vbData.putFloat(positions[i]); vbData.putFloat(positions[i+1]); vbData.putFloat(positions[i+2])
+                vbData.putFloat(normals[i]); vbData.putFloat(normals[i+1]); vbData.putFloat(normals[i+2])
+            }
             vbData.flip()
+
             val ibData = ByteBuffer.allocateDirect(indices.size * 2).order(ByteOrder.nativeOrder())
             indices.forEach { ibData.putShort(it.toShort()) }
             ibData.flip()
@@ -269,7 +380,17 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
             hairVertexBuffer = VertexBuffer.Builder()
                 .bufferCount(1)
                 .vertexCount(positions.size / 3)
-                .attribute(VertexBuffer.VertexAttribute.POSITION, 0, VertexBuffer.AttributeType.FLOAT3, 0, 12)
+                .attribute(VertexBuffer.VertexAttribute.POSITION, 0, VertexBuffer.AttributeType.FLOAT3, 0, 24)
+                .attribute(VertexBuffer.VertexAttribute.TANGENTS, 0, VertexBuffer.AttributeType.SHORT4, 0, 24)
+                .build(modelViewer.engine)
+
+            // Rebuild the buffer using the position-only layout plus a stable tangent fallback.
+            modelViewer.engine.destroyVertexBuffer(hairVertexBuffer!!)
+            hairVertexBuffer = VertexBuffer.Builder()
+                .bufferCount(1)
+                .vertexCount(positions.size / 3)
+                .attribute(VertexBuffer.VertexAttribute.POSITION, 0, VertexBuffer.AttributeType.FLOAT3, 0, 24)
+                .attribute(VertexBuffer.VertexAttribute.NORMAL, 0, VertexBuffer.AttributeType.FLOAT3, 12, 24)
                 .build(modelViewer.engine)
             hairVertexBuffer!!.setBufferAt(modelViewer.engine, 0, vbData)
 
@@ -281,7 +402,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
 
             hairEntity = EntityManager.get().create()
             RenderableManager.Builder(1)
-                .boundingBox(com.google.android.filament.Box(0f, 1.7f, 0f, 0.25f, 0.3f, 0.25f))
+                .boundingBox(com.google.android.filament.Box(0f, 1.5f, 0f, 0.30f, 0.38f, 0.30f))
                 .geometry(0, RenderableManager.PrimitiveType.TRIANGLES, hairVertexBuffer!!, hairIndexBuffer!!)
                 .material(0, hairMaterial!!.defaultInstance)
                 .culling(false)
@@ -289,6 +410,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
                 .receiveShadows(true)
                 .build(modelViewer.engine, hairEntity)
             modelViewer.scene.addEntity(hairEntity)
+
             val tm = modelViewer.engine.transformManager
             tm.create(hairEntity)
             tm.setParent(tm.getInstance(hairEntity), tm.getInstance(modelViewer.asset!!.root))
