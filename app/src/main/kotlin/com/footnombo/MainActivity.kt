@@ -377,7 +377,6 @@ class PlayerPreviewView(context: Activity, private var player: Player) : android
             android.opengl.GLES20.glDeleteShader(f)
             return p
         }
-        }
     }
 }
 class MainActivity : Activity() {
