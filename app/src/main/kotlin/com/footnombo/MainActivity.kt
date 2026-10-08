@@ -343,8 +343,8 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
                     modelViewer.engine.transformManager.destroy(hairEntity)
                     EntityManager.get().destroy(hairEntity)
                 }
-                hairVertexBuffer?.let { modelViewer.engine.destroy(it) }
-                hairIndexBuffer?.let { modelViewer.engine.destroy(it) }
+                hairVertexBuffer?.let { modelViewer.engine.destroyVertexBuffer(it) }
+                hairIndexBuffer?.let { modelViewer.engine.destroyIndexBuffer(it) }
                 hairMaterial?.let { modelViewer.engine.destroyMaterial(it) }
                 modelViewer.destroy()
             } catch (_: Exception) {}
