@@ -381,15 +381,6 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
                 .bufferCount(1)
                 .vertexCount(positions.size / 3)
                 .attribute(VertexBuffer.VertexAttribute.POSITION, 0, VertexBuffer.AttributeType.FLOAT3, 0, 24)
-                .attribute(VertexBuffer.VertexAttribute.TANGENTS, 0, VertexBuffer.AttributeType.SHORT4, 0, 24)
-                .build(modelViewer.engine)
-
-            // Rebuild the buffer using the position-only layout plus a stable tangent fallback.
-            modelViewer.engine.destroyVertexBuffer(hairVertexBuffer!!)
-            hairVertexBuffer = VertexBuffer.Builder()
-                .bufferCount(1)
-                .vertexCount(positions.size / 3)
-                .attribute(VertexBuffer.VertexAttribute.POSITION, 0, VertexBuffer.AttributeType.FLOAT3, 0, 24)
                 .attribute(VertexBuffer.VertexAttribute.NORMAL, 0, VertexBuffer.AttributeType.FLOAT3, 12, 24)
                 .build(modelViewer.engine)
             hairVertexBuffer!!.setBufferAt(modelViewer.engine, 0, vbData)
