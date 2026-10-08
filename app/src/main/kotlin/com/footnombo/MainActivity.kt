@@ -24,7 +24,14 @@ data class Player(
     var trust: Int = 55,
     var matches: Int = 0,
     var goals: Int = 0,
-    var assists: Int = 0
+    var assists: Int = 0,
+    var season: Int = 1,
+    var week: Int = 1,
+    var money: Int = 1200,
+    var contractWeeks: Int = 24,
+    var club: String = "FC North City",
+    var injuryWeeks: Int = 0,
+    var reputation: Int = 20
 ) { val overall get() = ((attack + pass + speed + physical) / 4.0).roundToInt() }
 
 class MainActivity : Activity() {
@@ -33,6 +40,9 @@ class MainActivity : Activity() {
     private lateinit var content: LinearLayout
     private var trained = false
     private var played = false
+    private var eventShown = false
+    private var eventTitle = ""
+    private var eventText = ""
 
     private fun dp(v:Int)= (v*resources.displayMetrics.density).roundToInt()
     private fun tv(t:String,size:Float=16f,bold:Boolean=false)=TextView(this).apply{
@@ -96,6 +106,19 @@ class MainActivity : Activity() {
         val c=card();c.addView(tv(p.name,22f,true));c.addView(tv(p.position+" • №"+p.number+" • 18 лет",14f));c.addView(tv("FC North City • 7-е место в лиге"));c.addView(tv("Общий рейтинг: "+p.overall,20f,true));content.addView(c)
         val s=card();s.addView(tv("Сезон 1 • Неделя 4",18f,true));s.addView(tv("Матчи: "+p.matches+"   Голы: "+p.goals+"   Голевые: "+p.assists));s.addView(tv("Доверие тренера: "+p.trust+"%   Уверенность: "+p.morale+"%"));content.addView(s)
         val e=card();e.addView(tv("Следующий матч",17f,true));e.addView(tv("FC North City — Red Falcons"));content.addView(e);nav()
+    }
+    private fun showEvent(){
+        eventShown=true
+        val events=listOf("Тренер вызывает тебя" to "Тренер предлагает остаться после занятия и отработать удары.", "Интерес скаутов" to "Клуб из соседней лиги прислал запрос о твоём прогрессе.", "Разговор с капитаном" to "Капитан советует чаще играть на команду.")
+        val e=events[Random.nextInt(events.size)];eventTitle=e.first;eventText=e.second
+        base("Событие");content.addView(tv(eventTitle,22f,true));content.addView(tv(eventText,16f))
+        content.addView(button("💪 Принять вызов"){p.attack+=2;p.energy=(p.energy-10).coerceAtLeast(0);p.trust=(p.trust+4).coerceAtMost(100);showCareer()})
+        content.addView(button("🤝 Играть командно"){p.pass+=2;p.morale=(p.morale+5).coerceAtMost(100);p.reputation++;showCareer()})
+        content.addView(button("😴 Отказаться"){p.energy=(p.energy+5).coerceAtMost(100);p.trust=(p.trust-3).coerceAtLeast(0);showCareer()})
+    }
+    private fun advanceWeek(){
+        p.week++;p.energy=(p.energy+25).coerceAtMost(100);p.contractWeeks--;trained=false;played=false;eventShown=false
+        if(p.contractWeeks<=0){p.club="Без клуба";p.trust=0};if(p.week>38){p.week=1;p.season++};if(p.injuryWeeks>0)p.injuryWeeks--;showCareer()
     }
     private fun showProfile(){
         base("Профиль игрока")
