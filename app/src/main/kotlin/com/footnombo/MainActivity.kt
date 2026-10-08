@@ -384,7 +384,7 @@ class MainActivity : Activity() {
                         }
                         grid.addView(b, GridLayout.LayoutParams().apply {
                             width = 0
-                            height = dp(58)
+                            this.height = dp(58)
                             columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
                         })
                     }
