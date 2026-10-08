@@ -465,12 +465,12 @@ class MainActivity : Activity() {
         right.addView(info)
 
         val body = section("ТЕЛОСЛОЖЕНИЕ")
-        val heightValue = tv("\${p.height} см", 14f, true)
-        val weightValue = tv("\${p.weight} кг", 14f, true)
+        val heightValue = tv("${p.height} см", 14f, true)
+        val weightValue = tv("${p.weight} кг", 14f, true)
         fun bodyButton(text:String, action:()->Unit): Button = option(text) {
             action()
-            heightValue.text = "\${p.height} см"
-            weightValue.text = "\${p.weight} кг"
+            heightValue.text = "${p.height} см"
+            weightValue.text = "${p.weight} кг"
             refresh3D()
         }
         body.removeAllViews()
@@ -522,9 +522,9 @@ class MainActivity : Activity() {
             Toast.makeText(this, "Форма: $k", Toast.LENGTH_SHORT).show()
         } }.toTypedArray()))
         equipment.addView(label("НОМЕР"))
-        val numberText = tv("№ \${p.number}", 16f, true)
+        val numberText = tv("№ ${p.number}", 16f, true)
         equipment.addView(row(
-            option("‹") { p.number = (p.number - 1).coerceAtLeast(1); numberText.text = "№ \${p.number}"; num.setText(p.number.toString()) },
+            option("‹") { p.number = (p.number - 1).coerceAtLeast(1); numberText.text = "№ ${p.number}"; num.setText(p.number.toString()) },
             numberText,
             option("›") { p.number = (p.number + 1).coerceAtMost(99); numberText.text = "№ \${p.number}"; num.setText(p.number.toString()) }
         ))
@@ -532,7 +532,7 @@ class MainActivity : Activity() {
         equipment.addView(row(option("Перчатки") {}, option("Наушники") {}, option("Гетры") {}, option("Бутсы") {}))
         right.addView(equipment)
 
-        val finish = button("ЗАВЕРШИТЬ И НАЧАТЬ КАРЬЕРУ  →").apply {
+        val finish = button("ЗАВЕРШИТЬ И НАЧАТЬ КАРЬЕРУ  →") {}.apply {
             textSize = 17f
             minHeight = dp(58)
         }
