@@ -367,10 +367,9 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
                 normals[i] /= len; normals[i+1] /= len; normals[i+2] /= len
             }
 
-            val vbData = ByteBuffer.allocateDirect(positions.size * 4 + normals.size * 4).order(ByteOrder.nativeOrder())
+            val vbData = ByteBuffer.allocateDirect(positions.size * 4).order(ByteOrder.nativeOrder())
             for (i in positions.indices step 3) {
                 vbData.putFloat(positions[i]); vbData.putFloat(positions[i+1]); vbData.putFloat(positions[i+2])
-                vbData.putFloat(normals[i]); vbData.putFloat(normals[i+1]); vbData.putFloat(normals[i+2])
             }
             vbData.flip()
 
@@ -381,8 +380,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
             hairVertexBuffer = VertexBuffer.Builder()
                 .bufferCount(1)
                 .vertexCount(positions.size / 3)
-                .attribute(VertexBuffer.VertexAttribute.POSITION, 0, VertexBuffer.AttributeType.FLOAT3, 0, 24)
-                .attribute(VertexBuffer.VertexAttribute.NORMAL, 0, VertexBuffer.AttributeType.FLOAT3, 12, 24)
+                .attribute(VertexBuffer.VertexAttribute.POSITION, 0, VertexBuffer.AttributeType.FLOAT3, 0, 12)
                 .build(modelViewer.engine)
             hairVertexBuffer!!.setBufferAt(modelViewer.engine, 0, vbData)
 
