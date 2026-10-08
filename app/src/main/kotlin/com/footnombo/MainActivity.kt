@@ -237,7 +237,9 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
                         asset.releaseSourceData()
                         modelViewer.asset?.let { body ->
                             val tm = engine.transformManager
-                            tm.setTransform(tm.getInstance(asset.root), tm.getTransform(tm.getInstance(body.root)))
+                            val bodyTransform = FloatArray(16)
+                            tm.getTransform(tm.getInstance(body.root), bodyTransform)
+                            tm.setTransform(tm.getInstance(asset.root), bodyTransform)
                         }
                         selectHair(player.hair)
                     } catch (e: Exception) { Log.e(TAG, "Hair asset load failed", e) }
