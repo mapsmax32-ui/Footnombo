@@ -341,57 +341,66 @@ class MainActivity : Activity() {
                 p.hair, pos.selectedItem?.toString() ?: "ЦАП")
         }
 
-        fun showPanel(which: Int) {
-            panel.removeAllViews()
-            when (which) {
-                0 -> {
-                    val c = card()
-                    c.addView(tv("Основная информация", 18f, true))
-                    c.addView(first); c.addView(last)
-                    c.addView(tv("Страна", 13f, true)); c.addView(country)
-                    c.addView(tv("Позиция", 13f, true)); c.addView(pos)
-                    c.addView(age); c.addView(num)
-                    panel.addView(c)
-                }
-                1 -> {
-                    val c = card()
-                    c.addView(tv("Параметры тела", 18f, true))
-                    c.addView(tv("Рост и вес сразу обновляют параметры персонажа.", 13f))
-                    c.addView(height); c.addView(weight)
-                    c.addView(tv("Тон кожи", 13f, true)); c.addView(skin)
-                    panel.addView(c)
-                    panel.addView(button("Сбросить тело"){ height.setText("180"); weight.setText("72"); skin.setSelection(2); refreshModel() })
-                }
-                else -> {
-                    val c = card()
-                    c.addView(tv("Выбери причёску", 18f, true))
-                    c.addView(tv("Варианты меняют внешний вид превью игрока.", 13f))
-                    val hairstyles = arrayOf(
-                        "Короткая классика","Фейд","Высокий фейд","Андеркат",
-                        "Короткий ёжик","Текстурный кроп","Кудри","Объёмные кудри",
-                        "Ирокез","Длинные назад","Дреды","Косички"
-                    )
-                    val grid = GridLayout(this).apply {
-                        columnCount = 3
-                        useDefaultMargins = true
-                    }
-                    hairstyles.forEach { style ->
-                        val b = button(style) {
-                            p.hair = style
-                            preview?.update(p.height, p.weight, p.skin, style, p.position)
-                            Toast.makeText(this@MainActivity, "Причёска: $style", Toast.LENGTH_SHORT).show()
-                            showPanel(2)
-                        }
-                        grid.addView(b, GridLayout.LayoutParams().apply {
-                            width = 0
-                            this.height = dp(58)
-                            columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                        })
-                    }
-                    c.addView(grid)
-                    panel.addView(c)
-                }
+        val infoPanel = card().apply {
+            addView(tv("Основная информация", 18f, true))
+            addView(first); addView(last)
+            addView(tv("Страна", 13f, true)); addView(country)
+            addView(tv("Позиция", 13f, true)); addView(pos)
+            addView(age); addView(num)
+        }
+        val bodyPanel = card().apply {
+            addView(tv("Параметры тела", 18f, true))
+            addView(tv("Рост и вес сразу обновляют параметры персонажа.", 13f))
+            addView(height); addView(weight)
+            addView(tv("Тон кожи", 13f, true)); addView(skin)
+            addView(button("Сбросить тело") {
+                height.setText("180")
+                weight.setText("72")
+                skin.setSelection(2)
+                refreshModel()
+            })
+        }
+        val hairPanel = card().apply {
+            addView(tv("Выбери причёску", 18f, true))
+            addView(tv("Выбранная причёска сразу отображается на превью.", 13f))
+            val hairstyles = arrayOf(
+                "Короткая классика","Фейд","Высокий фейд","Андеркат",
+                "Короткий ёжик","Текстурный кроп","Кудри","Объёмные кудри",
+                "Ирокез","Длинные назад","Дреды","Косички"
+            )
+            val grid = GridLayout(this@MainActivity).apply {
+                columnCount = 3
+                useDefaultMargins = true
             }
+            hairstyles.forEach { style ->
+                val b = button(style) {
+                    p.hair = style
+                    preview?.update(
+                        (height.text.toString().toIntOrNull() ?: 180).coerceIn(150,210),
+                        (weight.text.toString().toIntOrNull() ?: 72).coerceIn(45,120),
+                        skin.selectedItem?.toString() ?: "Средняя",
+                        style,
+                        pos.selectedItem?.toString() ?: "ЦАП"
+                    )
+                    Toast.makeText(this@MainActivity, "Причёска: $style", Toast.LENGTH_SHORT).show()
+                }
+                grid.addView(b, GridLayout.LayoutParams().apply {
+                    width = 0
+                    this.height = dp(58)
+                    columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                })
+            }
+            addView(grid)
+        }
+
+        panel.addView(infoPanel)
+        panel.addView(bodyPanel)
+        panel.addView(hairPanel)
+
+        fun showPanel(which: Int) {
+            infoPanel.visibility = if (which == 0) View.VISIBLE else View.GONE
+            bodyPanel.visibility = if (which == 1) View.VISIBLE else View.GONE
+            hairPanel.visibility = if (which == 2) View.VISIBLE else View.GONE
             refreshModel()
         }
 
