@@ -17,6 +17,16 @@ import com.google.android.filament.utils.ModelViewer
 import com.google.android.filament.utils.Utils
 import com.google.android.filament.EntityManager
 import com.google.android.filament.LightManager
+import com.google.android.filament.RenderableManager
+import com.google.android.filament.VertexBuffer
+import com.google.android.filament.IndexBuffer
+import com.google.android.filament.Material
+import com.google.android.filament.filamat.MaterialBuilder
+import com.google.android.filament.utils.Manipulator
+import java.nio.ByteOrder
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.PI
 import android.widget.*
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -50,63 +60,6 @@ data class Player(
     var reputation: Int = 20
 ) { val overall get() = ((attack + pass + speed + physical) / 4.0).roundToInt() }
 
-class HairOverlayView(context: android.content.Context) : View(context) {
-    private var style = "Короткая классика"
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(24, 20, 18) }
-    fun setStyle(value: String) { style = value; invalidate() }
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        val cx = width / 2f
-        val cy = height * 0.13f
-        val s = (width.coerceAtMost(height) * 0.13f).coerceAtLeast(18f)
-        paint.color = when {
-            style.contains("свет", true) -> Color.rgb(90, 68, 45)
-            style.contains("рыж", true) -> Color.rgb(105, 45, 22)
-            else -> Color.rgb(28, 22, 19)
-        }
-        val path = Path()
-        when (style) {
-            "Фейд", "Высокий фейд", "Короткая классика", "Короткий ёжик" -> {
-                canvas.drawOval(cx-s, cy-s*0.62f, cx+s, cy+s*0.42f, paint)
-                if (style.contains("фейд", true)) {
-                    paint.alpha = 150
-                    canvas.drawOval(cx-s*0.78f, cy-s*0.48f, cx+s*0.78f, cy+s*0.25f, paint)
-                    paint.alpha = 255
-                }
-            }
-            "Андеркат", "Текстурный кроп" -> {
-                canvas.drawOval(cx-s*1.05f, cy-s*0.58f, cx+s*1.05f, cy+s*0.38f, paint)
-                canvas.drawRect(cx-s*0.82f, cy-s*0.05f, cx+s*0.82f, cy+s*0.34f, paint)
-            }
-            "Кудри", "Объёмные кудри" -> {
-                val r = if (style == "Объёмные кудри") s*0.28f else s*0.22f
-                for (i in -4..4) for (j in -2..2) {
-                    canvas.drawCircle(cx + i*r*0.75f, cy + j*r*0.7f, r, paint)
-                }
-            }
-            "Ирокез" -> {
-                canvas.drawRoundRect(cx-s*0.35f, cy-s*0.95f, cx+s*0.35f, cy+s*0.25f, s*0.18f, s*0.18f, paint)
-            }
-            "Длинные назад" -> {
-                canvas.drawOval(cx-s*0.95f, cy-s*0.55f, cx+s*1.18f, cy+s*0.52f, paint)
-                canvas.drawOval(cx+s*0.35f, cy-s*0.15f, cx+s*1.35f, cy+s*0.72f, paint)
-            }
-            "Дреды" -> {
-                for (i in -4..4) {
-                    val x = cx + i*s*0.25f
-                    canvas.drawRoundRect(x-s*0.10f, cy-s*0.55f, x+s*0.10f, cy+s*0.85f, s*0.1f, s*0.1f, paint)
-                }
-            }
-            "Косички" -> {
-                for (i in -3..3) {
-                    val x = cx + i*s*0.28f
-                    canvas.drawRoundRect(x-s*0.08f, cy-s*0.55f, x+s*0.08f, cy+s*0.95f, s*0.08f, s*0.08f, paint)
-                }
-            }
-        }
-    }
-}
-
 class PlayerPreviewView(context: Activity, private var player: Player) : FrameLayout(context) {
     companion object {
         private const val MODEL_URL = "https://www.innerscene.com/api/library/soccer-player-standing-3d-person-team-sports-f55b1b4f/download"
@@ -116,16 +69,17 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
     }
 
     private val surface = SurfaceView(context)
-    private val hairOverlay = HairOverlayView(context)
     private lateinit var modelViewer: ModelViewer
+    private var hairEntity = 0
+    private var hairVertexBuffer: VertexBuffer? = null
+    private var hairIndexBuffer: IndexBuffer? = null
+    private var hairMaterial: Material? = null
     private val choreographer = Choreographer.getInstance()
     private var framePosted = false
 
     init {
         setBackgroundColor(Color.rgb(8, 18, 14))
         addView(surface, LayoutParams(-1, -1))
-        addView(hairOverlay, LayoutParams(-1, -1))
-        hairOverlay.setStyle(player.hair)
         surface.setOnTouchListener { _, event ->
             if (::modelViewer.isInitialized) modelViewer.onTouchEvent(event)
             true
@@ -139,14 +93,22 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
         player.skin = skin
         player.hair = hair
         player.position = position
-        hairOverlay.setStyle(hair)
+        if (::modelViewer.isInitialized) rebuildHair(hair)
     }
 
     private fun initViewer() {
         if (::modelViewer.isInitialized) return
-        modelViewer = ModelViewer(surface)
+        val manipulator = Manipulator.Builder()
+            .targetPosition(0.0f, 0.0f, -4.0f)
+            .orbitHomePosition(0.0f, 0.05f, -1.65f)
+            .viewport(width.coerceAtLeast(1), height.coerceAtLeast(1))
+            .zoomSpeed(0.025f)
+            .orbitSpeed(0.008f, 0.008f)
+            .build(Manipulator.Mode.ORBIT)
+        modelViewer = ModelViewer(surface, manipulator = manipulator)
+        modelViewer.camera.setExposure(16.0f, 1.0f / 125.0f, 180.0f)
         modelViewer.view.renderQuality = modelViewer.view.renderQuality.apply {
-            hdrColorBuffer = com.google.android.filament.View.QualityLevel.MEDIUM
+            hdrColorBuffer = com.google.android.filament.View.QualityLevel.HIGH
         }
         modelViewer.view.multiSampleAntiAliasingOptions =
             modelViewer.view.multiSampleAntiAliasingOptions.apply { enabled = true }
@@ -155,12 +117,12 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
             modelViewer.view.ambientOcclusionOptions.apply { enabled = true }
         val clear = modelViewer.renderer.clearOptions
         clear.clear = true
-        clear.clearColor = doubleArrayOf(0.10, 0.16, 0.13, 1.0)
+        clear.clearColor = doubleArrayOf(0.16, 0.23, 0.20, 1.0)
         modelViewer.renderer.clearOptions = clear
         val light = EntityManager.get().create()
         LightManager.Builder(LightManager.Type.DIRECTIONAL)
             .color(1.0f, 0.95f, 0.90f)
-            .intensity(85000.0f)
+            .intensity(120000.0f)
             .direction(0.35f, -1.0f, -0.55f)
             .castShadows(true)
             .build(modelViewer.engine, light)
@@ -168,7 +130,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
         val fill = EntityManager.get().create()
         LightManager.Builder(LightManager.Type.DIRECTIONAL)
             .color(0.72f, 0.82f, 1.0f)
-            .intensity(35000.0f)
+            .intensity(65000.0f)
             .direction(-0.55f, -0.35f, 0.65f)
             .build(modelViewer.engine, fill)
         modelViewer.scene.addEntity(fill)
@@ -190,6 +152,147 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
             }
             if (::modelViewer.isInitialized) modelViewer.render(frameTimeNanos)
             choreographer.postFrameCallback(this)
+        }
+    }
+
+    private fun ensureHairMaterial() {
+        if (hairMaterial != null) return
+        MaterialBuilder.init()
+        try {
+            val pkg = MaterialBuilder()
+                .name("FootnomboHair")
+                .platform(MaterialBuilder.Platform.MOBILE)
+                .shading(MaterialBuilder.Shading.LIT)
+                .doubleSided(true)
+                .material("""
+                    void material(inout MaterialInputs material) {
+                        prepareMaterial(material);
+                        material.baseColor.rgb = float3(0.035, 0.022, 0.015);
+                        material.metallic = 0.0;
+                        material.roughness = 0.82;
+                    }
+                """.trimIndent())
+                .optimization(MaterialBuilder.Optimization.NONE)
+                .build(modelViewer.engine)
+            hairMaterial = Material.Builder().payload(pkg.getBuffer(), pkg.getBuffer().remaining()).build(modelViewer.engine)
+        } finally {
+            MaterialBuilder.shutdown()
+        }
+    }
+
+    private fun rebuildHair(style: String) {
+        if (!::modelViewer.isInitialized || modelViewer.asset == null) return
+        try {
+            if (hairEntity != 0) {
+                modelViewer.scene.removeEntity(hairEntity)
+                modelViewer.engine.renderableManager.destroy(hairEntity)
+                modelViewer.engine.transformManager.destroy(hairEntity)
+                EntityManager.get().destroy(hairEntity)
+                hairEntity = 0
+            }
+            hairVertexBuffer?.let { modelViewer.engine.destroy(it) }
+            hairIndexBuffer?.let { modelViewer.engine.destroy(it) }
+            hairVertexBuffer = null
+            hairIndexBuffer = null
+            ensureHairMaterial()
+
+            val positions = ArrayList<Float>()
+            val indices = ArrayList<Int>()
+            fun addSphere(cx: Float, cy: Float, cz: Float, rx: Float, ry: Float, rz: Float, rings: Int = 6, segs: Int = 18) {
+                val base = positions.size / 3
+                for (r in 0..rings) {
+                    val v = r.toFloat() / rings
+                    val phi = v * (PI.toFloat() / 2f)
+                    val y = cy + cos(phi) * ry
+                    val rr = sin(phi)
+                    for (s in 0 until segs) {
+                        val a = s.toFloat() / segs * (2f * PI.toFloat())
+                        positions += cx + cos(a) * rx * rr
+                        positions += y
+                        positions += cz + sin(a) * rz * rr
+                    }
+                }
+                for (r in 0 until rings) for (s in 0 until segs) {
+                    val n = (s + 1) % segs
+                    val a = base + r * segs + s
+                    val b = base + r * segs + n
+                    val d = base + (r + 1) * segs + s
+                    val e = base + (r + 1) * segs + n
+                    indices += a; indices += d; indices += b
+                    indices += b; indices += d; indices += e
+                }
+            }
+            fun addCylinder(cx: Float, cy: Float, cz: Float, radius: Float, height: Float, segs: Int = 10) {
+                val base = positions.size / 3
+                for (y in 0..1) for (s in 0 until segs) {
+                    val a = s.toFloat() / segs * (2f * PI.toFloat())
+                    positions += cx + cos(a) * radius
+                    positions += cy + y * height
+                    positions += cz + sin(a) * radius
+                }
+                for (s in 0 until segs) {
+                    val n = (s + 1) % segs
+                    indices += base+s; indices += base+segs+s; indices += base+n
+                    indices += base+n; indices += base+segs+s; indices += base+segs+n
+                }
+            }
+
+            val shape = when (style) {
+                "Фейд" -> floatArrayOf(1.57f, 1.72f, 0.135f, 0.15f)
+                "Высокий фейд" -> floatArrayOf(1.60f, 1.73f, 0.125f, 0.145f)
+                "Андеркат" -> floatArrayOf(1.56f, 1.78f, 0.15f, 0.16f)
+                "Короткий ёжик" -> floatArrayOf(1.59f, 1.76f, 0.14f, 0.15f)
+                "Текстурный кроп" -> floatArrayOf(1.56f, 1.77f, 0.145f, 0.16f)
+                "Кудри" -> floatArrayOf(1.54f, 1.82f, 0.17f, 0.18f)
+                "Объёмные кудри" -> floatArrayOf(1.52f, 1.88f, 0.19f, 0.20f)
+                "Ирокез" -> floatArrayOf(1.58f, 1.88f, 0.065f, 0.17f)
+                "Длинные назад" -> floatArrayOf(1.53f, 1.79f, 0.17f, 0.21f)
+                "Дреды" -> floatArrayOf(1.54f, 1.80f, 0.17f, 0.18f)
+                "Косички" -> floatArrayOf(1.54f, 1.77f, 0.16f, 0.18f)
+                else -> floatArrayOf(1.57f, 1.75f, 0.145f, 0.155f)
+            }
+            addSphere(0f, shape[0], 0f, shape[2], shape[1]-shape[0], shape[3])
+            when (style) {
+                "Ирокез" -> for (i in -2..2) addCylinder(i*0.035f, 1.73f, 0f, 0.025f, 0.16f, 8)
+                "Кудри", "Объёмные кудри" -> for (i in -2..2) for (j in -1..1) addSphere(i*0.06f, shape[1]-0.015f, j*0.055f, 0.055f, 0.055f, 0.055f, 4, 10)
+                "Дреды", "Косички" -> for (i in -3..3) addCylinder(i*0.045f, 1.56f, 0f, 0.018f, 0.22f, 8)
+                "Длинные назад" -> for (i in -2..2) addCylinder(i*0.055f, 1.57f, 0.08f, 0.018f, 0.24f, 8)
+            }
+
+            val vbData = ByteBuffer.allocateDirect(positions.size * 4).order(ByteOrder.nativeOrder())
+            positions.forEach { vbData.putFloat(it) }
+            vbData.flip()
+            val ibData = ByteBuffer.allocateDirect(indices.size * 2).order(ByteOrder.nativeOrder())
+            indices.forEach { ibData.putShort(it.toShort()) }
+            ibData.flip()
+
+            hairVertexBuffer = VertexBuffer.Builder()
+                .bufferCount(1)
+                .vertexCount(positions.size / 3)
+                .attribute(VertexBuffer.VertexAttribute.POSITION, 0, VertexBuffer.AttributeType.FLOAT3, 0, 12)
+                .build(modelViewer.engine)
+            hairVertexBuffer!!.setBufferAt(modelViewer.engine, 0, vbData)
+
+            hairIndexBuffer = IndexBuffer.Builder()
+                .indexCount(indices.size)
+                .bufferType(IndexBuffer.Builder.IndexType.USHORT)
+                .build(modelViewer.engine)
+            hairIndexBuffer!!.setBuffer(modelViewer.engine, ibData)
+
+            hairEntity = EntityManager.get().create()
+            RenderableManager.Builder(1)
+                .boundingBox(com.google.android.filament.Box(0f, 1.7f, 0f, 0.25f, 0.3f, 0.25f))
+                .geometry(0, RenderableManager.PrimitiveType.TRIANGLES, hairVertexBuffer!!, hairIndexBuffer!!)
+                .material(0, hairMaterial!!.defaultInstance)
+                .culling(false)
+                .castShadows(true)
+                .receiveShadows(true)
+                .build(modelViewer.engine, hairEntity)
+            modelViewer.scene.addEntity(hairEntity)
+            val tm = modelViewer.engine.transformManager
+            tm.create(hairEntity, tm.getInstance(modelViewer.asset!!.root))
+        } catch (e: Exception) {
+            Log.e(TAG, "3D hair build failed", e)
         }
     }
 
@@ -218,6 +321,7 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
                     if (!::modelViewer.isInitialized || !isAttachedToWindow) return@post
                     modelViewer.loadModelGlb(ByteBuffer.wrap(bytes))
                     modelViewer.transformToUnitCube()
+                    rebuildHair(player.hair)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "3D player load failed", e)
@@ -232,7 +336,17 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
         choreographer.removeFrameCallback(frameCallback)
         framePosted = false
         if (::modelViewer.isInitialized) {
-            try { modelViewer.destroy() } catch (_: Exception) {}
+            try {
+                if (hairEntity != 0) {
+                    modelViewer.engine.renderableManager.destroy(hairEntity)
+                    modelViewer.engine.transformManager.destroy(hairEntity)
+                    EntityManager.get().destroy(hairEntity)
+                }
+                hairVertexBuffer?.let { modelViewer.engine.destroy(it) }
+                hairIndexBuffer?.let { modelViewer.engine.destroy(it) }
+                hairMaterial?.let { modelViewer.engine.destroy(it) }
+                modelViewer.destroy()
+            } catch (_: Exception) {}
         }
         super.onDetachedFromWindow()
     }
