@@ -191,10 +191,10 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
     private fun selectHair(style: String) {
         val asset = hairAsset ?: return
         val wanted = when (style) {
-            "Короткая классика", "Андеркат", "Текстурный кроп" -> "Hair_SimpleParted"
+            "Короткая классика" -> "Hair_SimpleParted"
             "Фейд", "Высокий фейд", "Короткий ёжик" -> "Hair_Buzzed"
-            "Кудри", "Объёмные кудри", "Длинные назад", "Дреды" -> "Hair_Long"
-            "Ирокез", "Косички" -> "Hair_Buns"
+            "Длинные волосы" -> "Hair_Long"
+            "Пучки" -> "Hair_Buns"
             else -> "Hair_SimpleParted"
         }
         val rm = modelViewer.engine.renderableManager
