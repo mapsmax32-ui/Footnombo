@@ -2,9 +2,10 @@ package com.footnombo
 
 import android.app.Activity
 import android.os.Bundle
-import android.graphics.Color
+import android.graphics.*
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
+import android.view.View
 import android.widget.*
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -15,6 +16,10 @@ data class Player(
     var number: Int = 10,
     var height: Int = 180,
     var weight: Int = 72,
+    var age: Int = 18,
+    var country: String = "Россия",
+    var skin: String = "Средняя",
+    var hair: String = "Тёмная",
     var attack: Int = 72,
     var pass: Int = 75,
     var speed: Int = 68,
@@ -34,6 +39,109 @@ data class Player(
     var reputation: Int = 20
 ) { val overall get() = ((attack + pass + speed + physical) / 4.0).roundToInt() }
 
+class PlayerPreviewView(private var player: Player) : View(null) {
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var previewHeight = 180
+    private var previewWeight = 72
+    private var previewSkin = "Средняя"
+    private var previewHair = "Тёмная"
+    private var previewPosition = "ЦАП"
+
+    constructor(activity: Activity, p: Player) : this(p) { paint.isAntiAlias = true }
+
+    fun update(height: Int, weight: Int, skin: String, hair: String, position: String) {
+        previewHeight = height
+        previewWeight = weight
+        previewSkin = skin
+        previewHair = hair
+        previewPosition = position
+        invalidate()
+    }
+
+    private fun skinColor(): Int = when(previewSkin) {
+        "Светлая" -> Color.rgb(244, 204, 172)
+        "Смуглая" -> Color.rgb(180, 125, 82)
+        "Тёмная" -> Color.rgb(105, 68, 45)
+        else -> Color.rgb(211, 157, 111)
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val w = width.toFloat()
+        val h = height.toFloat()
+        paint.style = Paint.Style.FILL
+        paint.color = Color.rgb(21, 34, 29)
+        canvas.drawRoundRect(0f, 0f, w, h, 28f, 28f, paint)
+
+        val scale = (previewHeight / 180f).coerceIn(.82f, 1.18f)
+        val body = (previewWeight / 72f).coerceIn(.72f, 1.35f)
+        val cx = w / 2f
+        val ground = h - 28f
+        val total = h * .73f * scale
+        val headR = (total * .085f).coerceIn(17f, 29f)
+        val headY = ground - total + headR
+        val shoulder = total * (.16f * body).coerceIn(.13f,.21f)
+        val torsoTop = headY + headR * 1.15f
+        val torsoBottom = ground - total * .31f
+        val legW = total * .075f * body
+        val legLen = ground - torsoBottom
+        val shirt = when(previewPosition) {
+            "ЦФ" -> Color.rgb(210, 70, 62)
+            "ЦЗ" -> Color.rgb(65, 105, 180)
+            else -> Color.rgb(31, 155, 91)
+        }
+
+        paint.color = Color.argb(70, 0, 0, 0)
+        canvas.drawOval(cx - shoulder*1.25f, ground-9, cx + shoulder*1.25f, ground+5, paint)
+
+        paint.color = shirt
+        val torso = Path().apply {
+            moveTo(cx-shoulder, torsoTop)
+            lineTo(cx+shoulder, torsoTop)
+            lineTo(cx+shoulder*.82f, torsoBottom)
+            lineTo(cx-shoulder*.82f, torsoBottom)
+            close()
+        }
+        canvas.drawPath(torso, paint)
+
+        paint.color = Color.rgb(232,232,232)
+        canvas.drawRect(cx-shoulder*.76f, torsoBottom, cx+shoulder*.76f, torsoBottom+legLen*.12f, paint)
+
+        paint.color = skinColor()
+        canvas.drawCircle(cx, headY, headR, paint)
+        canvas.drawRect(cx-shoulder*.95f, torsoTop+5, cx-shoulder*.63f, torsoBottom, paint)
+        canvas.drawRect(cx+shoulder*.63f, torsoTop+5, cx+shoulder*.95f, torsoBottom, paint)
+
+        paint.color = Color.rgb(48,35,29)
+        val hairTop = when(previewHair) {
+            "Светлая" -> Color.rgb(205,180,105)
+            "Каштановая" -> Color.rgb(105,67,40)
+            "Короткая" -> Color.rgb(45,35,30)
+            else -> Color.rgb(25,25,25)
+        }
+        paint.color = hairTop
+        canvas.drawArc(cx-headR, headY-headR, cx+headR, headY+headR, 180f, 180f, true, paint)
+
+        paint.color = shirt
+        canvas.drawRect(cx-legW*1.5f, torsoBottom+legLen*.08f, cx-legW*.1f, ground-18, paint)
+        canvas.drawRect(cx+legW*.1f, torsoBottom+legLen*.08f, cx+legW*1.5f, ground-18, paint)
+
+        paint.color = Color.rgb(30,30,35)
+        canvas.drawRoundRect(cx-legW*1.5f, ground-23, cx-legW*.05f, ground, 7f, 7f, paint)
+        canvas.drawRoundRect(cx+legW*.05f, ground-23, cx+legW*1.5f, ground, 7f, 7f, paint)
+
+        paint.color = Color.WHITE
+        paint.textAlign = Paint.Align.CENTER
+        paint.textSize = (total*.12f).coerceIn(20f,34f)
+        paint.typeface = Typeface.DEFAULT_BOLD
+        canvas.drawText("10", cx, torsoTop + (torsoBottom-torsoTop)*.62f, paint)
+
+        paint.textSize = 13f
+        paint.color = Color.LTGRAY
+        canvas.drawText("$previewHeight см  •  $previewWeight кг", cx, h-6f, paint)
+    }
+}
+
 class MainActivity : Activity() {
     private val p = Player()
     private lateinit var root: LinearLayout
@@ -43,67 +151,121 @@ class MainActivity : Activity() {
     private var eventShown = false
     private var eventTitle = ""
     private var eventText = ""
+    private var preview: PlayerPreviewView? = null
 
     private fun dp(v:Int)= (v*resources.displayMetrics.density).roundToInt()
     private fun tv(t:String,size:Float=16f,bold:Boolean=false)=TextView(this).apply{
         text=t;textSize=size;setTextColor(Color.WHITE);if(bold)setTypeface(typeface,1)
-        setPadding(dp(4),dp(6),dp(4),dp(6))
+        setPadding(dp(4),dp(5),dp(4),dp(5))
+    }
+    private fun field(hint:String,value:String,input:Int=0)=EditText(this).apply{
+        this.hint=hint;setText(value);inputType=input;setTextColor(Color.WHITE);setHintTextColor(Color.LTGRAY)
+        setSingleLine(true);setPadding(dp(10),dp(7),dp(10),dp(7))
+        background=GradientDrawable().apply{cornerRadius=dp(10).toFloat();setColor(Color.rgb(35,45,41))}
     }
     private fun button(t:String,a:()->Unit)=Button(this).apply{
-        text=t;isAllCaps=false;setTextColor(Color.WHITE)
+        text=t;isAllCaps=false;setTextColor(Color.WHITE);textSize=14f;minHeight=dp(46)
         background=GradientDrawable().apply{cornerRadius=dp(12).toFloat();setColor(Color.rgb(24,165,88))}
         setOnClickListener{a()}
     }
     private fun card()=LinearLayout(this).apply{
-        orientation=LinearLayout.VERTICAL;setPadding(dp(14),dp(12),dp(14),dp(12))
+        orientation=LinearLayout.VERTICAL;setPadding(dp(12),dp(10),dp(12),dp(10))
         background=GradientDrawable().apply{cornerRadius=dp(16).toFloat();setColor(Color.rgb(28,38,34));setStroke(dp(1),Color.rgb(55,70,63))}
-        layoutParams=LinearLayout.LayoutParams(-1,-2).apply{setMargins(0,dp(6),0,dp(6))}
+        layoutParams=LinearLayout.LayoutParams(-1,-2).apply{setMargins(0,dp(5),0,dp(5))}
     }
     private fun base(t:String){
-        root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(14),dp(12),dp(14),dp(10));setBackgroundColor(Color.rgb(16,22,20))}
-        root.addView(tv(t,24f,true))
+        root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(10),dp(8),dp(10),dp(8));setBackgroundColor(Color.rgb(16,22,20))}
+        root.addView(tv(t,22f,true))
         content=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL}
-        root.addView(ScrollView(this).apply{addView(content)},LinearLayout.LayoutParams(-1,0,1f))
+        val scroll=ScrollView(this).apply{isFillViewport=true;addView(content)}
+        root.addView(scroll,LinearLayout.LayoutParams(-1,0,1f))
         setContentView(root)
     }
-    override fun onCreate(b:Bundle?){super.onCreate(b);showCreate()}
+    override fun onCreate(b:Bundle?){super.onCreate(b);window.statusBarColor=Color.rgb(16,22,20);window.navigationBarColor=Color.rgb(16,22,20);showCreate()}
 
     private fun showCreate(){
         base("Создание игрока")
-        content.addView(tv("Создай своего футболиста и начни путь от молодёжки до большой сцены.",15f))
+        content.addView(tv("Настрой футболиста перед первым контрактом.",14f))
+
+        val previewCard=card()
+        preview=PlayerPreviewView(this,p).apply{minimumHeight=dp(270)}
+        previewCard.addView(preview,LinearLayout.LayoutParams(-1,dp(285)))
+        content.addView(previewCard)
+
         val c=card()
-        val first=EditText(this).apply{hint="Имя";setText("Алекс");setTextColor(Color.WHITE);setHintTextColor(Color.LTGRAY)}
-        val last=EditText(this).apply{hint="Фамилия";setText("Морозов");setTextColor(Color.WHITE);setHintTextColor(Color.LTGRAY)}
+        val first=field("Имя","Алекс")
+        val last=field("Фамилия","Морозов")
         c.addView(first);c.addView(last)
-        val pos=Spinner(this).apply{adapter=ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,arrayOf("ЦАП","ПВ","ЛВ","ЦФ","ЦП","ЦЗ"))}
-        c.addView(tv("Позиция",14f,true));c.addView(pos)
-        val num=EditText(this).apply{hint="Номер 1-99";setText("10");inputType=2;setTextColor(Color.WHITE)}
-        val height=EditText(this).apply{hint="Рост, см";setText("180");inputType=2;setTextColor(Color.WHITE)}
-        val weight=EditText(this).apply{hint="Вес, кг";setText("72");inputType=2;setTextColor(Color.WHITE)}
-        c.addView(num);c.addView(height);c.addView(weight)
-        c.addView(tv("Внешность",14f,true))
-        val skin=Spinner(this).apply{adapter=ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,arrayOf("Светлая","Средняя","Смуглая","Тёмная"))}
-        val hair=Spinner(this).apply{adapter=ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,arrayOf("Короткая","Каштановая","Светлая","Тёмная"))}
-        c.addView(skin);c.addView(hair);content.addView(c)
+
+        c.addView(tv("Страна",13f,true))
+        val country=Spinner(this).apply{adapter=ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,
+            arrayOf("Россия","Нидерланды","Германия","Бразилия","Аргентина","Франция","Испания","Англия"))}
+        c.addView(country)
+
+        c.addView(tv("Позиция",13f,true))
+        val pos=Spinner(this).apply{adapter=ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,
+            arrayOf("ЦАП","ПВ","ЛВ","ЦФ","ЦП","ЦЗ","ВР"))}
+        c.addView(pos)
+
+        val age=field("Возраст, 16-35","18",2)
+        val height=field("Рост, 150-210 см","180",2)
+        val weight=field("Вес, 45-120 кг","72",2)
+        val num=field("Номер, 1-99","10",2)
+        c.addView(age);c.addView(height);c.addView(weight);c.addView(num)
+
+        c.addView(tv("Цвет кожи",13f,true))
+        val skin=Spinner(this).apply{adapter=ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,
+            arrayOf("Светлая","Средняя","Смуглая","Тёмная"))}
+        c.addView(skin)
+        c.addView(tv("Волосы",13f,true))
+        val hair=Spinner(this).apply{adapter=ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,
+            arrayOf("Короткая","Каштановая","Светлая","Тёмная"))}
+        c.addView(hair)
+        content.addView(c)
+
+        fun refresh(){
+            val hh=(height.text.toString().toIntOrNull()?:180).coerceIn(150,210)
+            val ww=(weight.text.toString().toIntOrNull()?:72).coerceIn(45,120)
+            preview?.update(hh,ww,skin.selectedItem?.toString()?:"Средняя",hair.selectedItem?.toString()?:"Тёмная",pos.selectedItem?.toString()?:"ЦАП")
+        }
+        listOf(height,weight).forEach{it.setOnFocusChangeListener{_,_->refresh()}}
+        skin.onItemSelectedListener=object: AdapterView.OnItemSelectedListener{
+            override fun onNothingSelected(parent:AdapterView<*>?) {}
+            override fun onItemSelected(parent:AdapterView<*>?,view:View?,position:Int,id:Long){refresh()}
+        }
+        hair.onItemSelectedListener=object: AdapterView.OnItemSelectedListener{
+            override fun onNothingSelected(parent:AdapterView<*>?) {}
+            override fun onItemSelected(parent:AdapterView<*>?,view:View?,position:Int,id:Long){refresh()}
+        }
+        pos.onItemSelectedListener=object: AdapterView.OnItemSelectedListener{
+            override fun onNothingSelected(parent:AdapterView<*>?) {}
+            override fun onItemSelected(parent:AdapterView<*>?,view:View?,position:Int,id:Long){refresh()}
+        }
+
         content.addView(button("Начать карьеру →"){
-            p.name=(first.text.toString().trim()+" "+last.text.toString().trim()).trim()
+            p.name=(first.text.toString().trim()+" "+last.text.toString().trim()).trim().ifBlank{"Алекс Морозов"}
             p.position=pos.selectedItem.toString()
+            p.country=country.selectedItem.toString()
+            p.age=(age.text.toString().toIntOrNull()?:18).coerceIn(16,35)
             p.number=(num.text.toString().toIntOrNull()?:10).coerceIn(1,99)
             p.height=(height.text.toString().toIntOrNull()?:180).coerceIn(150,210)
             p.weight=(weight.text.toString().toIntOrNull()?:72).coerceIn(45,120)
+            p.skin=skin.selectedItem.toString()
+            p.hair=hair.selectedItem.toString()
             showCareer()
         })
     }
+
     private fun nav(){
         val bar=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER}
-        bar.addView(button("👤 Профиль"){showProfile()},LinearLayout.LayoutParams(0,dp(52),1f))
-        bar.addView(button("🏋 Тренировка"){showTraining()},LinearLayout.LayoutParams(0,dp(52),1f))
-        bar.addView(button("⚽ Матч"){showMatch()},LinearLayout.LayoutParams(0,dp(52),1f))
+        bar.addView(button("👤 Профиль"){showProfile()},LinearLayout.LayoutParams(0,dp(50),1f))
+        bar.addView(button("🏋 Тренировка"){showTraining()},LinearLayout.LayoutParams(0,dp(50),1f))
+        bar.addView(button("⚽ Матч"){showMatch()},LinearLayout.LayoutParams(0,dp(50),1f))
         root.addView(bar)
     }
     private fun showCareer(){
         base("Моя карьера")
-        val c=card();c.addView(tv(p.name,22f,true));c.addView(tv(p.position+" • №"+p.number+" • 18 лет",14f));c.addView(tv("FC North City • 7-е место в лиге"));c.addView(tv("Общий рейтинг: "+p.overall,20f,true));content.addView(c)
+        val c=card();c.addView(tv(p.name,22f,true));c.addView(tv(p.position+" • №"+p.number+" • "+p.age+" лет",14f));c.addView(tv(p.country+" • FC North City"));c.addView(tv("Общий рейтинг: "+p.overall,20f,true));content.addView(c)
         val s=card();s.addView(tv("Сезон "+p.season+" • Неделя "+p.week,18f,true));s.addView(tv("Матчи: "+p.matches+"   Голы: "+p.goals+"   Голевые: "+p.assists));s.addView(tv("Доверие: "+p.trust+"%   Мораль: "+p.morale+"%   Репутация: "+p.reputation));s.addView(tv("Баланс: €"+p.money+"   Контракт: "+p.contractWeeks+" нед."));content.addView(s)
         if(!eventShown) content.addView(button("📖 Событие недели"){showEvent()})
         val e=card();e.addView(tv("Следующий матч",17f,true));e.addView(tv(p.club+" — Red Falcons"));content.addView(e)
@@ -111,20 +273,17 @@ class MainActivity : Activity() {
     }
     private fun showEvent(){
         eventShown=true
-        val events=listOf("Тренер вызывает тебя" to "Тренер предлагает остаться после занятия и отработать удары.", "Интерес скаутов" to "Клуб из соседней лиги прислал запрос о твоём прогрессе.", "Разговор с капитаном" to "Капитан советует чаще играть на команду.")
+        val events=listOf("Тренер вызывает тебя" to "Тренер предлагает остаться после занятия и отработать удары.","Интерес скаутов" to "Клуб из соседней лиги прислал запрос о твоём прогрессе.","Разговор с капитаном" to "Капитан советует чаще играть на команду.")
         val e=events[Random.nextInt(events.size)];eventTitle=e.first;eventText=e.second
         base("Событие");content.addView(tv(eventTitle,22f,true));content.addView(tv(eventText,16f))
         content.addView(button("💪 Принять вызов"){p.attack+=2;p.energy=(p.energy-10).coerceAtLeast(0);p.trust=(p.trust+4).coerceAtMost(100);showCareer()})
         content.addView(button("🤝 Играть командно"){p.pass+=2;p.morale=(p.morale+5).coerceAtMost(100);p.reputation++;showCareer()})
         content.addView(button("😴 Отказаться"){p.energy=(p.energy+5).coerceAtMost(100);p.trust=(p.trust-3).coerceAtLeast(0);showCareer()})
     }
-    private fun advanceWeek(){
-        p.week++;p.energy=(p.energy+25).coerceAtMost(100);p.contractWeeks--;trained=false;played=false;eventShown=false
-        if(p.contractWeeks<=0){p.club="Без клуба";p.trust=0};if(p.week>38){p.week=1;p.season++};if(p.injuryWeeks>0)p.injuryWeeks--;showCareer()
-    }
+    private fun advanceWeek(){p.week++;p.energy=(p.energy+25).coerceAtMost(100);p.contractWeeks--;trained=false;played=false;eventShown=false;if(p.contractWeeks<=0){p.club="Без клуба";p.trust=0};if(p.week>38){p.week=1;p.season++};if(p.injuryWeeks>0)p.injuryWeeks--;showCareer()}
     private fun showProfile(){
         base("Профиль игрока")
-        val c=card();c.addView(tv(p.name,24f,true));c.addView(tv(p.position+" • №"+p.number));c.addView(tv("Рост "+p.height+" см • Вес "+p.weight+" кг"));c.addView(tv("Рейтинг "+p.overall));c.addView(tv("Атака "+p.attack+" • Пас "+p.pass+" • Скорость "+p.speed+" • Физика "+p.physical));content.addView(c)
+        val c=card();c.addView(tv(p.name,24f,true));c.addView(tv(p.position+" • №"+p.number+" • "+p.age+" лет"));c.addView(tv(p.country));c.addView(tv("Рост "+p.height+" см • Вес "+p.weight+" кг"));c.addView(tv("Внешность: "+p.skin+" тон кожи • "+p.hair+" волосы"));c.addView(tv("Рейтинг "+p.overall));c.addView(tv("Атака "+p.attack+" • Пас "+p.pass+" • Скорость "+p.speed+" • Физика "+p.physical));content.addView(c)
         val s=card();s.addView(tv("Карьерная статистика",18f,true));s.addView(tv("Матчи "+p.matches+" • Голы "+p.goals+" • Ассисты "+p.assists));content.addView(s);nav()
     }
     private fun showTraining(){
@@ -145,13 +304,11 @@ class MainActivity : Activity() {
         content.addView(c);nav()
     }
     private fun play(choice:String){
-        played=true;p.matches++
-        var home=Random.nextInt(0,3);var away=Random.nextInt(0,3)
+        played=true;p.matches++;var home=Random.nextInt(0,3);var away=Random.nextInt(0,3)
         if(choice=="creative"&&p.attack>70)home++
         if(choice=="team"){p.morale=(p.morale+7).coerceAtMost(100);p.trust=(p.trust+4).coerceAtMost(100);home++}
         if(choice=="balanced"&&p.physical>65)away=(away-1).coerceAtLeast(0)
         if(home>away){p.goals++;p.morale=(p.morale+5).coerceAtMost(100)}else p.morale=(p.morale-2).coerceAtLeast(0)
-        p.energy=(p.energy-20).coerceAtLeast(0);showMatch()
-        Toast.makeText(this,"Матч "+home+":"+away+" • "+if(home>away)"Победа!"else if(home==away)"Ничья"else"Поражение",Toast.LENGTH_LONG).show()
+        p.energy=(p.energy-20).coerceAtLeast(0);showMatch();Toast.makeText(this,"Матч "+home+":"+away+" • "+if(home>away)"Победа!"else if(home==away)"Ничья"else"Поражение",Toast.LENGTH_LONG).show()
     }
 }
