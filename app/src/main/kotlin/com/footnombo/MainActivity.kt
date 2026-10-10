@@ -287,6 +287,7 @@ class MainActivity : Activity() {
     private var eventTitle = ""
     private var eventText = ""
     private var preview: PlayerPreviewView? = null
+    private var currentOpponent: String? = null
 
     private fun dp(v:Int)= (v*resources.displayMetrics.density).roundToInt()
     private fun tv(t:String,size:Float=16f,bold:Boolean=false)=TextView(this).apply{
@@ -464,8 +465,11 @@ class MainActivity : Activity() {
     }
 
     private fun nextOpponentClub(): String {
+        currentOpponent?.let { if (it in leagueTeams() && it != p.club) return it }
         val opponents = leagueTeams().filter { it != p.club }
-        return if (opponents.isEmpty()) "Соперник не найден" else opponents[Random.nextInt(opponents.size)]
+        val selected = if (opponents.isEmpty()) "Соперник не найден" else opponents[Random.nextInt(opponents.size)]
+        currentOpponent = selected
+        return selected
     }
 
     private fun squadPlayers(club: String): List<String> = when (club) {
@@ -474,7 +478,7 @@ class MainActivity : Activity() {
         "Реал Мадрид" -> listOf("Тибо Куртуа • ВР", "Антонио Рюдигер • ЦЗ", "Дани Карвахаль • ПЗ", "Федерико Вальверде • ЦП", "Джуд Беллингем • АПЗ", "Винисиус Жуниор • ЛВ", "Килиан Мбаппе • ЦФ", "Родриго • ПВ")
         "Барселона" -> listOf("Марк-Андре тер Штеген • ВР", "Рональд Араухо • ЦЗ", "Жюль Кунде • ПЗ", "Педри • ЦП", "Гави • ЦП", "Ламин Ямаль • ПВ", "Рафинья • ЛВ", "Роберт Левандовски • ЦФ")
         "Манчестер Сити" -> listOf("Джанлуиджи Доннарумма • ВР", "Рубен Диаш • ЦЗ", "Йошко Гвардиол • ЦЗ", "Матеуш Нунес • ПЗ", "Родри • ОПЗ", "Фил Фоден • АПЗ", "Эрлинг Холанд • ЦФ", "Омар Мармуш • НП", "Савио • ПВ", "Райан Шерки • АПЗ")
-        "Арсенал" -> listOf("Давид Райя • ВР", "Уильям Салиба • ЦЗ", "Крис Мосquera • ЦЗ", "Бен Уайт • ПЗ", "Пьеро Инкапье • ЛЗ", "Габриэл Магальяйнс • ЦЗ", "Деклан Райс • ОПЗ", "Мартин Эдегор • АПЗ", "Эберечи Эзе • АПЗ", "Букайо Сака • ПВ", "Виктор Дьёкереш • ЦФ", "Кай Хаверц • ЦФ")
+        "Арсенал" -> listOf("Давид Райя • ВР", "Уильям Салиба • ЦЗ", "Крис Москуэра • ЦЗ", "Бен Уайт • ПЗ", "Пьеро Инкапье • ЛЗ", "Габриэл Магальяйнс • ЦЗ", "Деклан Райс • ОПЗ", "Мартин Эдегор • АПЗ", "Эберечи Эзе • АПЗ", "Букайо Сака • ПВ", "Виктор Дьёкереш • ЦФ", "Кай Хаверц • ЦФ")
         "Ливерпуль" -> listOf("Алисон • ВР", "Вирджил ван Дейк • ЦЗ", "Трент Александер-Арнольд • ПЗ", "Алексис Мак Аллистер • ЦП", "Доминик Собослаи • ЦП", "Мохамед Салах • ПВ", "Коди Гакпо • ЛВ", "Диогу Жота • ЦФ")
         "Бавария" -> listOf("Мануэль Нойер • ВР", "Ким Мин Джэ • ЦЗ", "Дайо Упамекано • ЦЗ", "Йозуа Киммих • ЦП", "Джамал Мусиала • АПЗ", "Лерой Сане • ПВ", "Харри Кейн • ЦФ", "Серж Гнабри • ЛВ")
         "Боруссия Дортмунд" -> listOf("Грегор Кобель • ВР", "Нико Шлоттербек • ЦЗ", "Эмре Джан • ОПЗ", "Юлиан Брандт • АПЗ", "Карим Адейеми • ЛВ", "Серу Гирасси • ЦФ", "Дониэлл Мален • ПВ")
@@ -587,7 +591,7 @@ class MainActivity : Activity() {
         content.addView(button("🤝 Играть командно"){p.pass+=2;p.morale=(p.morale+5).coerceAtMost(100);p.reputation++;showCareer()})
         content.addView(button("😴 Отказаться"){p.energy=(p.energy+5).coerceAtMost(100);p.trust=(p.trust-3).coerceAtLeast(0);showCareer()})
     }
-    private fun advanceWeek(){p.week++;p.energy=(p.energy+25).coerceAtMost(100);p.contractWeeks--;trained=false;played=false;eventShown=false;if(p.contractWeeks<=0){p.club="Без клуба";p.trust=0};if(p.week>38){p.week=1;p.season++};if(p.injuryWeeks>0)p.injuryWeeks--;showCareer()}
+    private fun advanceWeek(){currentOpponent=null;p.week++;p.energy=(p.energy+25).coerceAtMost(100);p.contractWeeks--;trained=false;played=false;eventShown=false;if(p.contractWeeks<=0){p.club="Без клуба";p.trust=0};if(p.week>38){p.week=1;p.season++};if(p.injuryWeeks>0)p.injuryWeeks--;showCareer()}
     private fun showProfile(){
         base("Профиль игрока")
         val c=card();c.addView(tv(p.name,24f,true));c.addView(tv(p.position+" • №"+p.number+" • "+p.age+" лет"));c.addView(tv(p.country));c.addView(tv("Рост "+p.height+" см • Вес "+p.weight+" кг"));c.addView(tv("Внешность: "+p.skin+" тон кожи • "+p.hair+" волосы"));c.addView(tv("Рейтинг "+p.overall));c.addView(tv("Атака "+p.attack+" • Пас "+p.pass+" • Скорость "+p.speed+" • Физика "+p.physical));content.addView(c)
