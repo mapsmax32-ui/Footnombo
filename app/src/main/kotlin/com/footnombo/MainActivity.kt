@@ -418,7 +418,18 @@ class MainActivity : Activity() {
                 }
                 p.name=first.text.toString().trim()+" "+last.text.toString().trim()
                 p.age=a!!;p.number=n!!;p.height=h!!;p.weight=w!!
-                p.country=birth.text.toString().trim()
+                val birthplace = birth.text.toString().trim()
+                p.country = when {
+                    birthplace.endsWith("Россия", true) -> "Россия"
+                    birthplace.endsWith("Нидерланды", true) -> "Нидерланды"
+                    birthplace.endsWith("Германия", true) -> "Германия"
+                    birthplace.endsWith("Бразилия", true) -> "Бразилия"
+                    birthplace.endsWith("Аргентина", true) -> "Аргентина"
+                    birthplace.endsWith("Франция", true) -> "Франция"
+                    birthplace.endsWith("Испания", true) -> "Испания"
+                    birthplace.endsWith("Англия", true) || birthplace.endsWith("Великобритания", true) -> "Англия"
+                    else -> "Россия"
+                }
                 p.position=when(pos.selectedItemPosition) {
                     0->"ЦАП";1->"ЦП";2->"ПВ";3->"ЛВ";4->"ЦФ";5->"ЦЗ";6->"ПЗ";7->"ЛЗ";else->"ВР"
                 }
