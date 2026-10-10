@@ -328,192 +328,108 @@ class MainActivity : Activity() {
     override fun onCreate(b:Bundle?){super.onCreate(b);window.statusBarColor=Color.rgb(16,22,20);window.navigationBarColor=Color.rgb(16,22,20);showCreate()}
 
     private fun showCreate(){
-        base("СОЗДАНИЕ ИГРОКА")
-        var refresh3D: () -> Unit = {}
-        var selectedKit = "Белая"
-        var selectedBeard = "Нет"
-
-        // Adapt the editor to the available display height on high-density phones.
-        val editorHeightPx = (resources.displayMetrics.heightPixels - dp(96)).coerceAtLeast(dp(260))
-        val editor = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.TOP }
-
-        val previewCard = card().apply {
-            setPadding(0, 0, 0, 0)
+        base("ПРОФИЛЬ ИГРОКА")
+        val panel = Color.rgb(22,30,44)
+        val muted = Color.rgb(155,169,190)
+        val blue = Color.rgb(68,128,255)
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18),dp(12),dp(18),dp(18))
             background = GradientDrawable().apply {
-                cornerRadius = dp(18).toFloat()
-                setColor(Color.rgb(11, 20, 29))
-                setStroke(dp(1), Color.rgb(44, 58, 72))
+                cornerRadius = dp(20).toFloat()
+                setColor(Color.rgb(14,20,31))
+                setStroke(dp(1),Color.rgb(42,54,75))
             }
         }
-        preview = PlayerPreviewView(this, p).apply { minimumHeight = editorHeightPx }
-        previewCard.addView(preview, LinearLayout.LayoutParams(-1, -1))
-        editor.addView(previewCard, LinearLayout.LayoutParams(0, editorHeightPx, 0.34f))
-
-        val rightScroll = ScrollView(this).apply {
-            isFillViewport = true
-            isClickable = true
-            isFocusable = true
-            elevation = dp(12).toFloat()
-            translationZ = dp(12).toFloat()
-            clipToPadding = false
+        form.addView(tv("СОЗДАНИЕ ФУТБОЛИСТА",22f,true))
+        form.addView(tv("Заполни данные, чтобы начать карьеру.",14f).apply { setTextColor(muted) })
+        fun section(t:String) {
+            form.addView(tv(t,14f,true).apply {
+                setTextColor(Color.rgb(220,229,243))
+                setPadding(0,dp(14),0,dp(5))
+            })
         }
-        val right = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(10), 0, 0, 0)
+        fun input(h:String,v:String,numeric:Boolean=false)=EditText(this).apply {
+            hint=h; setText(v); textSize=16f; setSingleLine(true)
+            setTextColor(Color.WHITE); setHintTextColor(muted)
+            inputType=if(numeric) android.text.InputType.TYPE_CLASS_NUMBER else android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            setPadding(dp(12),0,dp(12),0)
+            background=GradientDrawable().apply {
+                cornerRadius=dp(11).toFloat();setColor(panel)
+                setStroke(dp(1),Color.rgb(54,68,92))
+            }
         }
-        rightScroll.addView(right)
-
-        fun label(text:String) = tv(text, 13f, true).apply { setTextColor(Color.rgb(185, 194, 205)) }
-
-        fun row(vararg views:View): LinearLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            views.forEach { addView(it, LinearLayout.LayoutParams(0, dp(44), 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) }) }
+        fun cell(label:String,v:View)=LinearLayout(this).apply {
+            orientation=LinearLayout.VERTICAL
+            addView(tv(label,11f,true).apply { setTextColor(muted);setPadding(dp(2),0,0,dp(5)) })
+            addView(v,LinearLayout.LayoutParams(-1,dp(48)))
         }
-
-        fun option(text:String, selected:Boolean=false, action:()->Unit): Button =
-            button(text, action).apply {
-                textSize = 13f
-                minHeight = dp(42)
-                background = GradientDrawable().apply {
-                    cornerRadius = dp(10).toFloat()
-                    setColor(if (selected) Color.rgb(42, 112, 210) else Color.rgb(28, 38, 50))
-                    setStroke(dp(if (selected) 2 else 1), if (selected) Color.rgb(75, 164, 255) else Color.rgb(54, 67, 82))
+        fun pair(left:LinearLayout,right:LinearLayout) {
+            form.addView(LinearLayout(this).apply {
+                orientation=LinearLayout.HORIZONTAL
+                addView(left,LinearLayout.LayoutParams(0,-2,1f))
+                addView(right,LinearLayout.LayoutParams(0,-2,1f).apply { leftMargin=dp(10) })
+            })
+            form.addView(View(this),LinearLayout.LayoutParams(1,dp(7)))
+        }
+        section("01  ЛИЧНЫЕ ДАННЫЕ")
+        val first=input("Имя","Алекс")
+        val last=input("Фамилия","Морозов")
+        pair(cell("ИМЯ",first),cell("ФАМИЛИЯ",last))
+        val age=input("18","18",true)
+        val birth=input("Город, страна","Москва, Россия")
+        pair(cell("ВОЗРАСТ",age),cell("МЕСТО РОЖДЕНИЯ",birth))
+        section("02  ИГРОВЫЕ ДАННЫЕ")
+        val number=input("10","10",true)
+        val pos=Spinner(this).apply {
+            adapter=ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,
+                arrayOf("Центральный атакующий полузащитник","Центральный полузащитник","Правый вингер","Левый вингер","Центральный нападающий","Центральный защитник","Правый защитник","Левый защитник","Вратарь"))
+            background=GradientDrawable().apply { cornerRadius=dp(11).toFloat();setColor(panel);setStroke(dp(1),Color.rgb(54,68,92)) }
+        }
+        pair(cell("НОМЕР ФУТБОЛКИ",number),cell("ПОЗИЦИЯ",pos))
+        section("03  ФИЗИЧЕСКИЕ ДАННЫЕ")
+        val height=input("180","180",true)
+        val weight=input("72","72",true)
+        pair(cell("РОСТ, СМ",height),cell("ВЕС, КГ",weight))
+        val submit=Button(this).apply {
+            text="СОЗДАТЬ ИГРОКА   →";isAllCaps=false;textSize=16f;setTextColor(Color.WHITE)
+            background=GradientDrawable().apply { cornerRadius=dp(12).toFloat();setColor(blue) }
+            minHeight=dp(54)
+            setOnClickListener {
+                val a=age.text.toString().toIntOrNull()
+                val n=number.text.toString().toIntOrNull()
+                val h=height.text.toString().toIntOrNull()
+                val w=weight.text.toString().toIntOrNull()
+                val bad=when {
+                    first.text.toString().isBlank()->first
+                    last.text.toString().isBlank()->last
+                    birth.text.toString().isBlank()->birth
+                    a==null || a !in 16..45->age
+                    n==null || n !in 1..99->number
+                    h==null || h !in 140..220->height
+                    w==null || w !in 40..150->weight
+                    else->null
                 }
+                if(bad!=null) {
+                    bad.error="Проверь значение"
+                    bad.requestFocus()
+                    Toast.makeText(this@MainActivity,"Проверь заполненные данные",Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                p.name=first.text.toString().trim()+" "+last.text.toString().trim()
+                p.age=a!!;p.number=n!!;p.height=h!!;p.weight=w!!
+                p.country=birth.text.toString().trim()
+                p.position=when(pos.selectedItemPosition) {
+                    0->"ЦАП";1->"ЦП";2->"ПВ";3->"ЛВ";4->"ЦФ";5->"ЦЗ";6->"ПЗ";7->"ЛЗ";else->"ВР"
+                }
+                showAcademySelection()
             }
-
-        fun section(title:String): LinearLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(10), dp(8), dp(10), dp(8))
-            background = GradientDrawable().apply {
-                cornerRadius = dp(14).toFloat()
-                setColor(Color.rgb(22, 30, 40))
-                setStroke(dp(1), Color.rgb(45, 57, 71))
-            }
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(5), 0, dp(5)) }
-            addView(tv(title, 18f, true))
         }
-
-        val first = field("Имя", "Алекс")
-        val last = field("Фамилия", "Морозов")
-        val age = field("Возраст", "18", android.text.InputType.TYPE_CLASS_NUMBER)
-        val num = field("Номер", "10", android.text.InputType.TYPE_CLASS_NUMBER)
-        val country = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
-                arrayOf("Россия","Нидерланды","Германия","Бразилия","Аргентина","Франция","Испания","Англия"))
-        }
-        val pos = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
-                arrayOf("ЦАП","ПВ","ЛВ","ЦФ","ЦП","ЦЗ","ВР"))
-        }
-
-        val info = section("ПОЛ И ИНФОРМАЦИЯ")
-        info.addView(row(option("Мужской", true) {}, option("Женский") {
-            Toast.makeText(this, "Женская GLB-модель будет добавлена отдельно", Toast.LENGTH_SHORT).show()
-        }))
-        info.addView(label("ИМЯ И ФАМИЛИЯ"))
-        info.addView(row(first, last))
-        info.addView(label("СТРАНА • ПОЗИЦИЯ"))
-        info.addView(row(country, pos))
-        info.addView(row(age, num))
-        right.addView(info)
-
-        val body = section("ТЕЛОСЛОЖЕНИЕ")
-        val heightValue = tv("${p.height} см", 14f, true)
-        val weightValue = tv("${p.weight} кг", 14f, true)
-        fun bodyButton(text:String, action:()->Unit): Button = option(text) {
-            action()
-            heightValue.text = "${p.height} см"
-            weightValue.text = "${p.weight} кг"
-            refresh3D()
-        }
-        body.removeAllViews()
-        body.addView(tv("ТЕЛОСЛОЖЕНИЕ", 18f, true))
-        body.addView(label("РОСТ"))
-        body.addView(row(
-            bodyButton("−") { p.height = (p.height - 1).coerceAtLeast(150) },
-            heightValue,
-            bodyButton("+") { p.height = (p.height + 1).coerceAtMost(210) }
-        ))
-        body.addView(label("ВЕС"))
-        body.addView(row(
-            bodyButton("−") { p.weight = (p.weight - 1).coerceAtLeast(45) },
-            weightValue,
-            bodyButton("+") { p.weight = (p.weight + 1).coerceAtMost(120) }
-        ))
-        body.addView(label("ЦВЕТ КОЖИ"))
-        val skins = arrayOf("Очень светлая","Светлая","Средняя","Смуглая","Тёмная")
-        body.addView(row(*skins.map { sk -> option(sk, p.skin == sk) { p.skin = sk; refresh3D() } }.toTypedArray()))
-        right.addView(body)
-
-        val hair = section("ПРИЧЁСКА И ЦВЕТ ВОЛОС")
-        val hairs = arrayOf("Короткая классика","Фейд","Длинные волосы","Пучки")
-        hair.addView(row(*hairs.map { h -> option(h, p.hair == h) { p.hair = h; refresh3D() } }.toTypedArray()))
-        val hairColors = arrayOf("Тёмные","Светлые","Рыжие","Седые")
-        hair.addView(label("ЦВЕТ ВОЛОС"))
-        hair.addView(row(*hairColors.map { hc -> option(hc, false) {
-            Toast.makeText(this, "Цвет волос: $hc", Toast.LENGTH_SHORT).show()
-        } }.toTypedArray()))
-        right.addView(hair)
-
-        val face = section("ЛИЦО")
-        face.addView(label("Варианты лица оставлены как слоты для будущих face assets."))
-        face.addView(row(*arrayOf("Лицо 1","Лицо 2","Лицо 3","Лицо 4","Лицо 5","Лицо 6").map {
-            option(it, it=="Лицо 1") {}
-        }.toTypedArray()))
-        face.addView(label("РАСТИТЕЛЬНОСТЬ НА ЛИЦЕ"))
-        face.addView(row(*arrayOf("Нет","Щетина","Борода").map { b -> option(b, selectedBeard == b) {
-            selectedBeard = b
-            Toast.makeText(this, "Борода: $b", Toast.LENGTH_SHORT).show()
-        } }.toTypedArray()))
-        right.addView(face)
-
-        val equipment = section("ЭКИПИРОВКА")
-        val kits = arrayOf("Белая","Чёрная","Красная","Синяя")
-        equipment.addView(label("ФОРМА"))
-        equipment.addView(row(*kits.map { k -> option(k, selectedKit == k) {
-            selectedKit = k
-            Toast.makeText(this, "Форма: $k", Toast.LENGTH_SHORT).show()
-        } }.toTypedArray()))
-        equipment.addView(label("НОМЕР"))
-        val numberText = tv("№ ${p.number}", 16f, true)
-        equipment.addView(row(
-            option("‹") { p.number = (p.number - 1).coerceAtLeast(1); numberText.text = "№ ${p.number}"; num.setText(p.number.toString()) },
-            numberText,
-            option("›") { p.number = (p.number + 1).coerceAtMost(99); numberText.text = "№ \${p.number}"; num.setText(p.number.toString()) }
-        ))
-        equipment.addView(label("АКСЕССУАРЫ"))
-        equipment.addView(row(option("Перчатки") {}, option("Наушники") {}, option("Гетры") {}, option("Бутсы") {}))
-        right.addView(equipment)
-
-        val finish = button("ЗАВЕРШИТЬ И НАЧАТЬ КАРЬЕРУ  →") {}.apply {
-            textSize = 17f
-            minHeight = dp(58)
-        }
-        finish.setOnClickListener {
-            p.name = (first.text.toString().trim() + " " + last.text.toString().trim()).trim().ifBlank { "Алекс Морозов" }
-            p.position = pos.selectedItem.toString()
-            p.country = country.selectedItem.toString()
-            p.age = (age.text.toString().toIntOrNull() ?: 18).coerceIn(16, 35)
-            p.number = (num.text.toString().toIntOrNull() ?: 10).coerceIn(1, 99)
-            showAcademySelection()
-        }
-        right.addView(finish)
-
-        refresh3D = {
-            p.position = pos.selectedItem?.toString() ?: p.position
-            preview?.update(p.height, p.weight, p.skin, p.hair, p.position)
-        }
-        pos.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { refresh3D() }
-        }
-
-        editor.addView(rightScroll, LinearLayout.LayoutParams(0, editorHeightPx, 0.66f))
-        rightScroll.bringToFront()
-        content.addView(editor, LinearLayout.LayoutParams(-1, editorHeightPx))
-        refresh3D()
+        form.addView(submit,LinearLayout.LayoutParams(-1,dp(54)).apply { topMargin=dp(12) })
+        val scroll=ScrollView(this).apply { isFillViewport=true;addView(form) }
+        content.addView(scroll,LinearLayout.LayoutParams(-1,-1))
     }
+
     private fun nav(){
         val bar=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER}
         bar.addView(button("👤 Профиль"){showProfile()},LinearLayout.LayoutParams(0,dp(50),1f))
