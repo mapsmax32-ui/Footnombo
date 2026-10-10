@@ -74,6 +74,9 @@ class PlayerPreviewView(context: Activity, private var player: Player) : FrameLa
 
     init {
         setBackgroundColor(Color.rgb(8, 18, 14))
+        surface.setZOrderOnTop(false)
+        surface.setZOrderMediaOverlay(false)
+        surface.isClickable = false
         addView(surface, LayoutParams(-1, -1))
         surface.setOnTouchListener { _, event ->
             if (::modelViewer.isInitialized) modelViewer.onTouchEvent(event)
@@ -343,10 +346,17 @@ class MainActivity : Activity() {
             }
         }
         preview = PlayerPreviewView(this, p).apply { minimumHeight = editorHeightPx }
-        previewCard.addView(preview, LinearLayout.LayoutParams(-1, dp(520)))
+        previewCard.addView(preview, LinearLayout.LayoutParams(-1, -1))
         editor.addView(previewCard, LinearLayout.LayoutParams(0, editorHeightPx, 0.34f))
 
-        val rightScroll = ScrollView(this).apply { isFillViewport = true }
+        val rightScroll = ScrollView(this).apply {
+            isFillViewport = true
+            isClickable = true
+            isFocusable = true
+            elevation = dp(12).toFloat()
+            translationZ = dp(12).toFloat()
+            clipToPadding = false
+        }
         val right = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(10), 0, 0, 0)
@@ -500,7 +510,8 @@ class MainActivity : Activity() {
         }
 
         editor.addView(rightScroll, LinearLayout.LayoutParams(0, editorHeightPx, 0.66f))
-        content.addView(editor)
+        rightScroll.bringToFront()
+        content.addView(editor, LinearLayout.LayoutParams(-1, editorHeightPx))
         refresh3D()
     }
     private fun nav(){
