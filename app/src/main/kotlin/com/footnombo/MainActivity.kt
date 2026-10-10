@@ -330,6 +330,8 @@ class MainActivity : Activity() {
         var selectedKit = "Белая"
         var selectedBeard = "Нет"
 
+        // Adapt the editor to the available display height on high-density phones.
+        val editorHeightPx = (resources.displayMetrics.heightPixels - dp(96)).coerceAtLeast(dp(260))
         val editor = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.TOP }
 
         val previewCard = card().apply {
@@ -340,9 +342,9 @@ class MainActivity : Activity() {
                 setStroke(dp(1), Color.rgb(44, 58, 72))
             }
         }
-        preview = PlayerPreviewView(this, p).apply { minimumHeight = dp(520) }
+        preview = PlayerPreviewView(this, p).apply { minimumHeight = editorHeightPx }
         previewCard.addView(preview, LinearLayout.LayoutParams(-1, dp(520)))
-        editor.addView(previewCard, LinearLayout.LayoutParams(0, dp(540), 0.34f))
+        editor.addView(previewCard, LinearLayout.LayoutParams(0, editorHeightPx, 0.34f))
 
         val rightScroll = ScrollView(this).apply { isFillViewport = true }
         val right = LinearLayout(this).apply {
@@ -497,7 +499,7 @@ class MainActivity : Activity() {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { refresh3D() }
         }
 
-        editor.addView(rightScroll, LinearLayout.LayoutParams(0, dp(540), 0.66f))
+        editor.addView(rightScroll, LinearLayout.LayoutParams(0, editorHeightPx, 0.66f))
         content.addView(editor)
         refresh3D()
     }
